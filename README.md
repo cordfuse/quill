@@ -16,7 +16,7 @@
 
 <p align="center">
   <img src="docs/screenshots/05-kiosk.jpg" width="280" alt="Kiosk mode: same app with hidden controls, custom theme, and transparent server-side web search"><br>
-  <sub><b>The same app in kiosk mode</b> — rebranded with a custom theme, history sidebar / web search / MCP picker hidden, and web search still running transparently server-side (note the live answer about a .NET release date).</sub>
+  <sub><b>The same app in kiosk mode</b> — rebranded as "ACME Inc." with a custom theme, history sidebar / web search / MCP picker hidden, and web search still running transparently server-side (note the live answer about a .NET release date).</sub>
 </p>
 
 Embeddable AI chatbot framework. Drop-in branding, kiosk-friendly, MCP-ready.
