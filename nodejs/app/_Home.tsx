@@ -152,6 +152,48 @@ const DocumentIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
 )
 
+// ─── code block with per-block copy button ───────────────────────────────────
+//
+// Used by ReactMarkdown's `components={{ pre: CodeBlock }}` override. We
+// only override <pre> (fenced blocks), not inline <code>. The button sits
+// absolutely in the top-right of the block. The actual code text is
+// extracted from the child <code> element's children for clipboard.
+
+function extractCodeText(node: React.ReactNode): string {
+  if (typeof node === 'string') return node
+  if (typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractCodeText).join('')
+  if (node && typeof node === 'object' && 'props' in node) {
+    const props = (node as { props?: { children?: React.ReactNode } }).props
+    return extractCodeText(props?.children)
+  }
+  return ''
+}
+
+function CodeBlock({ children }: { children?: React.ReactNode }) {
+  const [copied, setCopied] = useState(false)
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(extractCodeText(children))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard denied */ }
+  }
+  return (
+    <pre className="relative">
+      <button
+        onClick={onCopy}
+        aria-label={copied ? 'Copied code' : 'Copy code'}
+        title={copied ? 'Copied' : 'Copy code'}
+        className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-surface text-fg-3 hover:bg-surface-3 hover:text-fg transition-colors"
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </button>
+      {children}
+    </pre>
+  )
+}
+
 // ─── delete-confirm modal ────────────────────────────────────────────────────
 
 function DeleteConfirmModal({ label, onConfirm, onCancel }: { label: string; onConfirm: () => void; onCancel: () => void }) {
@@ -742,7 +784,7 @@ function MessageItem({ msg, streaming, isLastAssistant, onEditAndResend, onRegen
             </span>
           ) : (
             <div className="prose prose-sm max-w-none [&>*]:my-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:bg-surface-2 [&_pre]:bg-surface-2 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ pre: CodeBlock }}>{msg.content}</ReactMarkdown>
             </div>
           )}
         </div>
