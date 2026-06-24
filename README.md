@@ -14,10 +14,14 @@
   </tr>
 </table>
 
-<p align="center">
-  <img src="docs/screenshots/05-kiosk.jpg" width="280" alt="Kiosk mode: same app with hidden controls, custom theme, and transparent server-side web search"><br>
-  <sub><b>The same app in kiosk mode</b> — rebranded as "ACME Inc." with a custom theme, history sidebar / web search / MCP picker hidden, and web search still running transparently server-side (note the live answer about a .NET release date).</sub>
-</p>
+<table>
+  <tr>
+    <td align="center"><sub>Kiosk mode — gear visible</sub><br><img src="docs/screenshots/05-kiosk.jpg" width="260" alt="Kiosk mode rebranded as ACME Inc. with custom theme; gear icon still visible"></td>
+    <td align="center"><sub>Full kiosk — gear also hidden</sub><br><img src="docs/screenshots/06-kiosk-full.jpg" width="260" alt="Full kiosk mode: same app with the gear icon also hidden via QUILL_SHOW_SETTINGS=0"></td>
+  </tr>
+</table>
+
+<p align="center"><sub><b>The same app in two kiosk configs</b> — rebranded as "ACME Inc.", custom theme, history sidebar / web search / MCP picker hidden. Right variant adds <code>QUILL_SHOW_SETTINGS=0</code> to drop the gear too. Note the live <code>.NET 10</code> answer in both — web search runs transparently server-side even with no globe toggle.</sub></p>
 
 Embeddable AI chatbot framework. Drop-in branding, kiosk-friendly, MCP-ready.
 
