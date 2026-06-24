@@ -261,48 +261,110 @@ export async function sendChatStream(
     throw new Error(message)
   }
 
-  const reader = res.body.getReader()
+  // Stream id lets us reconnect via /api/chat/replay/[id] with Last-Event-ID
+  // if the read drops mid-flight (e.g. mobile tab backgrounded). The server
+  // sets this header on POST.
+  const streamId = res.headers.get('X-Quill-Stream-Id') ?? ''
+
+  return drainStream(res.body, streamId, 0, signal, token, onDelta, hooks)
+}
+
+// Reads SSE events from a ReadableStream, returns the assembled message + any
+// sources. Tracks the highest event id seen so a reconnect can resume exactly
+// after it. If the read fails mid-stream AND we have a streamId, reconnects to
+// /api/chat/replay/[id] with Last-Event-ID and keeps draining. Recursive
+// (each reconnect calls drainStream again with the latest state).
+async function drainStream(
+  body: ReadableStream<Uint8Array>,
+  streamId: string,
+  startingLastId: number,
+  signal: AbortSignal | undefined,
+  token: string,
+  onDelta: (text: string) => void,
+  hooks: StreamHooks,
+  carryAccumulated = '',
+  carrySources: { title: string; url: string }[] = [],
+): Promise<ChatResponse> {
+  const reader = body.getReader()
   const decoder = new TextDecoder()
   let buf = ''
-  let accumulated = ''
-  const accumulatedSources: { title: string; url: string }[] = []
+  let accumulated = carryAccumulated
+  const accumulatedSources = carrySources
+  let lastEventId = startingLastId
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
 
-    let sep: number
-    while ((sep = buf.indexOf('\n\n')) >= 0) {
-      const evt = buf.slice(0, sep)
-      buf = buf.slice(sep + 2)
-      if (!evt.startsWith('data: ')) continue
-      const payload = evt.slice(6)
-      let obj: {
-        type: string
-        content?: string
-        message?: string
-        name?: string
-        query?: string
-        sources?: { title: string; url: string }[]
-      }
-      try {
-        obj = JSON.parse(payload)
-      } catch {
-        continue
-      }
-      if (obj.type === 'delta' && obj.content) {
-        accumulated += obj.content
-        onDelta(obj.content)
-      } else if (obj.type === 'tool_running' && obj.name) {
-        hooks.onToolRunning?.({ name: obj.name, query: obj.query })
-      } else if (obj.type === 'sources' && Array.isArray(obj.sources)) {
-        for (const s of obj.sources) accumulatedSources.push(s)
-        hooks.onSources?.(obj.sources)
-      } else if (obj.type === 'error') {
-        throw new Error(obj.message ?? 'Stream error')
+      let sep: number
+      while ((sep = buf.indexOf('\n\n')) >= 0) {
+        const evt = buf.slice(0, sep)
+        buf = buf.slice(sep + 2)
+        // SSE event can have `id: N\n` followed by `data: ...`. We parse both
+        // fields, update lastEventId for the next reconnect, then dispatch the
+        // JSON payload.
+        let payload: string | null = null
+        for (const line of evt.split('\n')) {
+          if (line.startsWith('id: ')) {
+            const n = parseInt(line.slice(4), 10)
+            if (Number.isFinite(n)) lastEventId = n
+          } else if (line.startsWith('data: ')) {
+            payload = line.slice(6)
+          }
+        }
+        if (!payload) continue
+        let obj: {
+          type: string
+          content?: string
+          message?: string
+          name?: string
+          query?: string
+          sources?: { title: string; url: string }[]
+        }
+        try {
+          obj = JSON.parse(payload)
+        } catch {
+          continue
+        }
+        if (obj.type === 'delta' && obj.content) {
+          accumulated += obj.content
+          onDelta(obj.content)
+        } else if (obj.type === 'tool_running' && obj.name) {
+          hooks.onToolRunning?.({ name: obj.name, query: obj.query })
+        } else if (obj.type === 'sources' && Array.isArray(obj.sources)) {
+          for (const s of obj.sources) accumulatedSources.push(s)
+          hooks.onSources?.(obj.sources)
+        } else if (obj.type === 'error') {
+          throw new Error(obj.message ?? 'Stream error')
+        }
       }
     }
+  } catch (err) {
+    // User-initiated cancel never reconnects.
+    if (err instanceof Error && err.name === 'AbortError') throw err
+    // No streamId → first POST never gave us one (older server, or POST
+    // failed before headers). Can't reconnect.
+    if (!streamId) throw err
+
+    // Attempt one reconnect. The replay endpoint resumes from lastEventId+1
+    // onwards, including any events that arrived while we were reading.
+    console.warn(`[chat] reader dropped at id=${lastEventId}; reconnecting via replay`)
+    const replayRes = await fetch(`${BASE}/chat/replay/${encodeURIComponent(streamId)}`, {
+      method: 'GET',
+      signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Last-Event-ID': String(lastEventId),
+      },
+    })
+    if (!replayRes.ok || !replayRes.body) {
+      // 404 means the stream is gone (TTL expired or never existed). Surface
+      // the original error rather than a confusing "Stream not found".
+      throw err
+    }
+    return drainStream(replayRes.body, streamId, lastEventId, signal, token, onDelta, hooks, accumulated, accumulatedSources)
   }
 
   return { message: accumulated, sources: accumulatedSources.length ? accumulatedSources : undefined }

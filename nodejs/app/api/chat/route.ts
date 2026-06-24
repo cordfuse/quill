@@ -5,6 +5,7 @@ import {
 } from '@/lib/server/ai-tools'
 import { loadQuillConfig, loadKioskFlags } from '@/lib/config'
 import { listServers } from '@/lib/server/mcp'
+import { createStream, attachReplay } from '@/lib/server/stream-buffer'
 
 export const maxDuration = 300
 
@@ -164,69 +165,93 @@ export async function POST(request: NextRequest) {
   console.log(`[chat] msgs=${messages.length} provider=${provider} model=${model} stream=${!!wantStream} websearch=${wantWebSearch} mcps=${mcpServers.length ? mcpServers.join(',') : '-'} temp=${temperature}`)
 
   if (wantStream) {
+    // Decoupled streaming with replay buffer.
+    //
+    // Two concerns to separate:
+    //   1. The LLM/MCP run must keep going even if the client disconnects
+    //      (so a backgrounded mobile tab can come back and finish reading).
+    //   2. The HTTP response is just one consumer — there can be reconnects
+    //      via /api/chat/replay/[id]?Last-Event-ID=N for the same stream.
+    //
+    // Architecture: createStream() returns push() + finish() into a process-
+    // local buffer. A background promise runs the chat and pushes every event
+    // (no awaiting from here — it outlives the request). The HTTP response is
+    // a ReadableStream that subscribes to the buffer and tails live events.
+    // The replay route does the same `attachReplay()` dance for reconnects.
+    const { streamId, push, finish } = createStream()
+
+    // Background run — keeps producing events even if the client is gone.
+    // The buffer absorbs them; replay clients catch up via Last-Event-ID.
+    void (async () => {
+      try {
+        for await (const event of runChatStream(messages, provider, model, systemPrompt, runOpts)) {
+          push(`data: ${JSON.stringify(event)}\n\n`)
+        }
+        push(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
+        console.log(`[chat] stream ${streamId} done`)
+      } catch (err) {
+        console.error(`[chat] stream ${streamId} error:`, err)
+        push(`data: ${JSON.stringify({ type: 'error', message: friendlyError(err) })}\n\n`)
+      } finally {
+        finish()
+      }
+    })()
+
     const enc = new TextEncoder()
     const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
-        // Track whether the underlying response stream is still writable.
-        // Mobile browsers + reverse proxies kill long-idle SSE connections
-        // (we saw 78s MS Learn responses drop on mobile). Once the client
-        // is gone, controller.enqueue throws ERR_INVALID_STATE — guard so
-        // we don't spam the log and so heartbeat cleanly self-terminates.
         let closed = false
         const safeEnqueue = (chunk: Uint8Array): boolean => {
           if (closed) return false
-          try {
-            controller.enqueue(chunk)
-            return true
-          } catch {
-            closed = true
-            return false
-          }
+          try { controller.enqueue(chunk); return true }
+          catch { closed = true; return false }
         }
-        const send = (obj: unknown) =>
-          safeEnqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
-        // Heartbeat: emit an SSE comment line every 8s while the stream is
-        // open. The line is ignored by the client parser but keeps the TCP
-        // socket warm so phones / proxies don't reap it on idle. First tick
-        // fires after the interval — long enough that fast responses never
-        // see a ping in their log.
-        const HEARTBEAT_MS = 8000
+        // Heartbeat keeps the TCP socket warm so proxies/phones don't reap
+        // it on idle. Doesn't go through the buffer — comments aren't
+        // replayable content.
         const PING = enc.encode(': ping\n\n')
         const heartbeat = setInterval(() => {
           if (!safeEnqueue(PING)) clearInterval(heartbeat)
-        }, HEARTBEAT_MS)
+        }, 8000)
 
-        try {
-          for await (const event of runChatStream(messages, provider, model, systemPrompt, runOpts)) {
-            // runChatStream yields typed events directly — forward as-is.
-            send(event)
-          }
-          send({ type: 'done' })
-          console.log('[chat] stream done')
-        } catch (err) {
-          // ERR_INVALID_STATE from a disconnected client isn't a server
-          // error — quietly note and move on. Real errors still log.
-          const isClosedErr = (err as { code?: string })?.code === 'ERR_INVALID_STATE'
-          if (isClosedErr || closed) {
-            console.log('[chat] client disconnected mid-stream')
-          } else {
-            console.error('[chat] stream error:', err)
-            send({ type: 'error', message: friendlyError(err) })
-          }
-        } finally {
-          clearInterval(heartbeat)
-          if (!closed) {
-            try { controller.close() } catch { /* already closed */ }
-          }
+        // Replay anything already buffered (rare — we just created the
+        // stream — but possible if the background loop got ahead).
+        const handle = attachReplay(streamId, 0)!
+        for (const e of handle.past) {
+          if (!safeEnqueue(enc.encode(`id: ${e.id}\n${e.payload}`))) break
         }
+
+        // If the background loop already finished (small/fast response),
+        // close immediately.
+        if (handle.done) {
+          clearInterval(heartbeat)
+          if (!closed) try { controller.close() } catch {}
+          return
+        }
+
+        // Tail live events. Stops on first failed enqueue (client gone) or
+        // when we observe the `done`/`error` event from the producer.
+        const unsubscribe = handle.subscribe(e => {
+          const ok = safeEnqueue(enc.encode(`id: ${e.id}\n${e.payload}`))
+          const isTerminal = e.payload.includes('"type":"done"') || e.payload.includes('"type":"error"')
+          if (!ok || isTerminal) {
+            unsubscribe()
+            clearInterval(heartbeat)
+            if (!closed) try { controller.close() } catch {}
+          }
+        })
       },
     })
+
     return new Response(readable, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
+        'Content-Type':       'text/event-stream',
+        'Cache-Control':      'no-cache, no-transform',
+        Connection:           'keep-alive',
+        // The stream id lets the client reconnect to /api/chat/replay/[id]
+        // with a Last-Event-ID header if the connection drops mid-flight.
+        'X-Quill-Stream-Id':  streamId,
       },
     })
   }
