@@ -115,6 +115,12 @@ const CheckIcon = () => (
 const TrashSmIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 )
+const EditMsgIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+)
+const RefreshIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+)
 const AttachIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
 )
@@ -486,21 +492,115 @@ function Sidebar({
 
 // ─── message bubble ──────────────────────────────────────────────────────────
 
-function MessageItem({ msg, streaming, onDelete }: {
+function MessageItem({ msg, streaming, isLastAssistant, onEditAndResend, onRegenerate }: {
   msg: ChatMessage
   streaming: boolean
-  onDelete: (id: string) => void
+  isLastAssistant: boolean
+  onEditAndResend: (id: string, newContent: string) => void
+  onRegenerate: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(msg.content)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+
   const copy = () => {
     navigator.clipboard.writeText(msg.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
-  // Actions: subdued by default (so they're tappable on mobile), full
-  // opacity on row hover. Stop propagation so clicks don't bubble into
-  // any future bubble-level handler.
-  const actions = (
+
+  const startEdit = () => {
+    setDraft(msg.content)
+    setEditing(true)
+    requestAnimationFrame(() => {
+      const el = editTextareaRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+      el.style.height = 'auto'
+      el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+    })
+  }
+  const cancelEdit = () => { setEditing(false); setDraft(msg.content) }
+  const saveEdit = () => {
+    const trimmed = draft.trim()
+    if (!trimmed || trimmed === msg.content) { cancelEdit(); return }
+    setEditing(false)
+    onEditAndResend(msg.id, trimmed)
+  }
+
+  if (msg.role === 'user') {
+    const actions = !editing && !streaming && (
+      <div
+        className="flex gap-2 opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity mb-1"
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={copy} title={copied ? 'Copied' : 'Copy'} className="text-fg-4 hover:text-fg-2 transition-colors">
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+        <button onClick={startEdit} title="Edit & resend" className="text-fg-4 hover:text-fg-2 transition-colors">
+          <EditMsgIcon />
+        </button>
+      </div>
+    )
+    return (
+      <div className="group flex items-end justify-end gap-1.5">
+        {actions}
+        {editing ? (
+          <div className="w-full max-w-[85%] rounded-2xl border border-primary/40 bg-surface p-2">
+            <textarea
+              ref={editTextareaRef}
+              value={draft}
+              onChange={e => {
+                setDraft(e.target.value)
+                const el = e.currentTarget
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
+                if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+              }}
+              className="w-full resize-none bg-transparent text-sm text-fg outline-none px-2 pt-1"
+              style={{ minHeight: '2rem', maxHeight: '200px' }}
+            />
+            <div className="flex items-center justify-end gap-2 px-1 pt-1">
+              <button onClick={cancelEdit} className="px-2.5 py-1 text-xs text-fg-3 hover:text-fg transition-colors">Cancel</button>
+              <button
+                onClick={saveEdit}
+                disabled={!draft.trim() || draft.trim() === msg.content}
+                className="px-2.5 py-1 text-xs rounded-lg bg-primary text-on-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-[75%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-on-primary whitespace-pre-wrap break-words space-y-2">
+            {msg.attachments && msg.attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {msg.attachments.map((att, i) => att.kind === 'image' && att.dataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={att.dataUrl} alt={att.name} className="max-h-40 rounded-lg border border-white/10 object-cover" />
+                ) : (
+                  <div key={i} className="flex items-center gap-2 rounded-md bg-on-primary/10 px-2 py-1 text-[11px]">
+                    <DocumentIcon /> {att.name}
+                  </div>
+                ))}
+              </div>
+            )}
+            {msg.content && <div>{msg.content}</div>}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const isEmptyStreaming = msg.content.length === 0 && streaming
+  // Regenerate is only offered on the LAST assistant message, and only
+  // when we're not currently streaming (otherwise it's mid-flight).
+  const actions = !isEmptyStreaming && (
     <div
       className="flex gap-2 opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity mb-1"
       onClick={e => e.stopPropagation()}
@@ -508,36 +608,14 @@ function MessageItem({ msg, streaming, onDelete }: {
       <button onClick={copy} title={copied ? 'Copied' : 'Copy'} className="text-fg-4 hover:text-fg-2 transition-colors">
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>
-      <button onClick={() => onDelete(msg.id)} title="Delete message" className="text-fg-4 hover:text-red-400 transition-colors">
-        <TrashSmIcon />
-      </button>
+      {isLastAssistant && !streaming && (
+        <button onClick={onRegenerate} title="Regenerate response" className="text-fg-4 hover:text-fg-2 transition-colors">
+          <RefreshIcon />
+        </button>
+      )}
     </div>
   )
 
-  if (msg.role === 'user') {
-    return (
-      <div className="group flex items-end justify-end gap-1.5">
-        {actions}
-        <div className="max-w-[75%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-on-primary whitespace-pre-wrap break-words space-y-2">
-          {msg.attachments && msg.attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {msg.attachments.map((att, i) => att.kind === 'image' && att.dataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={att.dataUrl} alt={att.name} className="max-h-40 rounded-lg border border-white/10 object-cover" />
-              ) : (
-                <div key={i} className="flex items-center gap-2 rounded-md bg-on-primary/10 px-2 py-1 text-[11px]">
-                  <DocumentIcon /> {att.name}
-                </div>
-              ))}
-            </div>
-          )}
-          {msg.content && <div>{msg.content}</div>}
-        </div>
-      </div>
-    )
-  }
-
-  const isEmptyStreaming = msg.content.length === 0 && streaming
   return (
     <div className="group flex flex-col items-start gap-0.5">
       <div className="flex items-end gap-1.5 max-w-full">
@@ -554,7 +632,7 @@ function MessageItem({ msg, streaming, onDelete }: {
             </div>
           )}
         </div>
-        {!isEmptyStreaming && actions}
+        {actions}
       </div>
       {msg.sources && msg.sources.length > 0 && (
         <div className="ml-1 mt-1 max-w-[85%] rounded-xl bg-surface px-3 py-2 border-l border-primary/30">
@@ -709,21 +787,23 @@ export default function Home() {
     setConversations(loadConversations())
   }, [])
 
-  const deleteMessage = useCallback((msgId: string) => {
-    const next = messages.filter(m => m.id !== msgId)
-    setMessages(next)
-    if (!activeId) return
-    const existing = conversations.find(c => c.id === activeId)
-    if (!existing) return
-    if (next.length === 0) {
-      deleteConversation(activeId)
-      setConversations(loadConversations())
-      setActiveId(null)
-    } else {
-      upsertConversation({ ...existing, messages: next, updatedAt: Date.now() })
-      setConversations(loadConversations())
-    }
-  }, [messages, activeId, conversations])
+  // Build the wire-format messages array (multimodal content where needed)
+  // from the in-memory ChatMessage[]. Shared by send/edit/regenerate.
+  const buildWireMessages = useCallback((msgs: ChatMessage[]): MultimodalMessage[] =>
+    msgs.map(m => {
+      if (m.attachments && m.attachments.length > 0) {
+        const blocks: ContentBlock[] = []
+        if (m.content) blocks.push({ type: 'text', text: m.content })
+        for (const att of m.attachments) {
+          if (att.kind === 'image' && att.dataUrl) {
+            blocks.push({ type: 'image_url', image_url: { url: att.dataUrl } })
+          }
+        }
+        return { role: m.role, content: blocks }
+      }
+      return { role: m.role, content: m.content }
+    }),
+  [])
 
   const clearAll = useCallback(() => {
     clearAllConversations()
@@ -764,28 +844,11 @@ export default function Home() {
     setPendingAttachments(prev => prev.filter((_, i) => i !== idx))
   }, [])
 
-  const send = useCallback(async () => {
-    const text = input.trim()
-    if ((!text && pendingAttachments.length === 0) || streaming) return
-
-    // Document attachments aren't wired to the model yet — token.js doesn't
-    // expose a cross-provider document content block. Surface a clear error
-    // instead of silently dropping them.
-    const hasDocs = pendingAttachments.some(a => a.kind === 'document')
-    if (hasDocs) {
-      setError("Document attachments aren't supported yet — remove them to send. (Image attachments work.)")
-      return
-    }
-
-    const attachmentsForMessage = pendingAttachments.slice()
-    const userMsg: ChatMessage = {
-      id: uuidv4(), role: 'user', content: text,
-      attachments: attachmentsForMessage.length > 0 ? attachmentsForMessage : undefined,
-    }
-    const newMessages = [...messages, userMsg]
+  // Core chat-run flow. Takes a fully-prepared messages array (ending with a
+  // user turn). Pushes an empty assistant placeholder, streams the response
+  // into it, persists. Shared by send, editAndResend, regenerate.
+  const runFlowWith = useCallback(async (newMessages: ChatMessage[]) => {
     setMessages(newMessages)
-    setInput('')
-    setPendingAttachments([])
     setError(null)
     setStreaming(true)
 
@@ -796,22 +859,7 @@ export default function Home() {
     const assistantMsg: ChatMessage = { id: assistantId, role: 'assistant', content: '' }
     setMessages([...newMessages, assistantMsg])
 
-    // Build the wire messages — convert any message with attachments into
-    // an OpenAI-style multimodal content array so token.js can route it
-    // to the active provider's native image format.
-    const wireMessages: MultimodalMessage[] = newMessages.map(m => {
-      if (m.attachments && m.attachments.length > 0) {
-        const blocks: ContentBlock[] = []
-        if (m.content) blocks.push({ type: 'text', text: m.content })
-        for (const att of m.attachments) {
-          if (att.kind === 'image' && att.dataUrl) {
-            blocks.push({ type: 'image_url', image_url: { url: att.dataUrl } })
-          }
-        }
-        return { role: m.role, content: blocks }
-      }
-      return { role: m.role, content: m.content }
-    })
+    const wireMessages = buildWireMessages(newMessages)
 
     try {
       const res = await sendChatStream(
@@ -855,7 +903,49 @@ export default function Home() {
       setStreaming(false)
       abortRef.current = null
     }
-  }, [input, streaming, messages, activeId, conversations, provider, model, pendingAttachments])
+  }, [activeId, conversations, provider, model, buildWireMessages])
+
+  const send = useCallback(async () => {
+    const text = input.trim()
+    if ((!text && pendingAttachments.length === 0) || streaming) return
+
+    // Document attachments aren't wired to the model yet — token.js doesn't
+    // expose a cross-provider document content block. Surface a clear error
+    // instead of silently dropping them.
+    if (pendingAttachments.some(a => a.kind === 'document')) {
+      setError("Document attachments aren't supported yet — remove them to send. (Image attachments work.)")
+      return
+    }
+
+    const attachments = pendingAttachments.slice()
+    const userMsg: ChatMessage = {
+      id: uuidv4(), role: 'user', content: text,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    }
+    setInput('')
+    setPendingAttachments([])
+    await runFlowWith([...messages, userMsg])
+  }, [input, streaming, messages, pendingAttachments, runFlowWith])
+
+  // Edit-and-resend: replace the chosen user message's content, drop every
+  // message after it (the now-stale assistant response and any downstream
+  // turns), and re-run the chat. Mirrors Claude.ai / ChatGPT semantics.
+  const editAndResend = useCallback(async (msgId: string, newContent: string) => {
+    if (streaming) return
+    const idx = messages.findIndex(m => m.id === msgId)
+    if (idx < 0 || messages[idx].role !== 'user') return
+    const editedMsg: ChatMessage = { ...messages[idx], id: uuidv4(), content: newContent }
+    await runFlowWith([...messages.slice(0, idx), editedMsg])
+  }, [messages, streaming, runFlowWith])
+
+  // Regenerate: drop the last (assistant) message and re-run with the same
+  // user prompt that produced it.
+  const regenerate = useCallback(async () => {
+    if (streaming || messages.length === 0) return
+    const last = messages[messages.length - 1]
+    if (last.role !== 'assistant') return
+    await runFlowWith(messages.slice(0, -1))
+  }, [messages, streaming, runFlowWith])
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -940,7 +1030,14 @@ export default function Home() {
               </div>
             )}
             {messages.map(m => (
-              <MessageItem key={m.id} msg={m} streaming={streaming} onDelete={deleteMessage} />
+              <MessageItem
+                key={m.id}
+                msg={m}
+                streaming={streaming}
+                isLastAssistant={m.role === 'assistant' && m.id === messages[messages.length - 1]?.id}
+                onEditAndResend={editAndResend}
+                onRegenerate={regenerate}
+              />
             ))}
           </div>
         </div>
