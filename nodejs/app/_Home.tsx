@@ -998,6 +998,14 @@ export default function Home({
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
+    // Register the service worker so Chrome considers the app installable.
+    // /sw.js is a minimal SW (fetch handler, no caching) — its presence is
+    // what unlocks the "Install app" prompt; without it, "Add to home
+    // screen" only creates a plain shortcut. Failures are silent because
+    // an unavailable SW shouldn't break the chat.
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => { /* ignore */ })
+    }
     const t = getTheme()
     setTheme(t)
     document.documentElement.setAttribute('data-theme', t)

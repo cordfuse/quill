@@ -1,25 +1,25 @@
-// Self-destruct service worker.
+// Minimal service worker — exists to satisfy the browser's PWA install
+// criteria. Chrome on Android won't show "Install app" (and "Add to home
+// screen" only creates a shortcut) unless a service worker with a fetch
+// handler is registered. No offline caching strategy: every request hits
+// the network as normal. Add a cache strategy later if you want offline
+// support.
 //
-// next-pwa was shipped briefly while quill was forked from mighty-ai-qr-web.
-// The cached SW from that period (and from any prior app that ran on the
-// same origin) intercepts requests and serves stale HTML/JS/CSS — which
-// caused the "Quill looks butchered" bug. This SW replaces the old one,
-// purges every cache, unregisters itself, and reloads any open client.
-//
-// Once everyone affected has reloaded at least once, this file (and the
-// /sw.js header rule in next.config.ts) can be removed. Until then, keep
-// serving it with no-cache so the eviction propagates.
+// Migrating from a prior self-destruct SW: any client that still has it
+// will run unregister + reload once, then on the next visit pick up THIS
+// sw via the registration in app/_Home.tsx.
 
-self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
 
 self.addEventListener('activate', event => {
-  event.waitUntil((async () => {
-    const names = await caches.keys()
-    await Promise.all(names.map(n => caches.delete(n)))
-    await self.registration.unregister()
-    const clients = await self.clients.matchAll({ type: 'window' })
-    for (const client of clients) {
-      try { client.navigate(client.url) } catch { /* nav blocked — ignore */ }
-    }
-  })())
+  event.waitUntil(self.clients.claim())
+})
+
+// A no-op fetch handler is enough for Chrome's install criteria — the
+// presence of the handler matters, not what it does. Returning nothing
+// lets the request fall through to the network normally.
+self.addEventListener('fetch', () => {
+  // intentional no-op — network passthrough
 })
