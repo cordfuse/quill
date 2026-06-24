@@ -73,11 +73,13 @@ export const PROVIDERS: ProviderInfo[] = [
   {
     id: 'gemini', label: 'Google Gemini', category: 'cloud',
     tokenjsProvider: 'gemini', envKey: 'GEMINI_API_KEY',
-    defaultModel: 'gemini-2.0-flash-001',
+    // Gemini 1.5 was deprecated server-side (v1beta returns 404). 2.5 is the
+    // current stable family; 3.x is preview and would churn the list too fast.
+    defaultModel: 'gemini-2.5-flash',
     models: [
-      { id: 'gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
-      { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro' },
-      { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash' },
+      { id: 'gemini-2.5-pro',         label: 'Gemini 2.5 Pro' },
+      { id: 'gemini-2.5-flash',       label: 'Gemini 2.5 Flash' },
+      { id: 'gemini-2.5-flash-lite',  label: 'Gemini 2.5 Flash-Lite' },
     ],
   },
   {
