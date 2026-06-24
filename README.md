@@ -108,40 +108,110 @@ Generate a `JWT_SECRET` with `openssl rand -hex 32`.
 
 ### Branding (`config/quill.config.json`)
 
+Every field below is optional — anything you omit falls back to Quill's defaults. The example shows a complete custom-themed deployment.
+
 ```json
 {
   "name": "My Bot",
   "shortName": "MyBot",
   "tagline": "What it does in one line",
-  "welcomeMessage": "First assistant bubble when chat is empty. Markdown OK.",
-  "starterPrompts": ["Try this", "Or this"],
+  "defaultSystemPrompt": "You are MyBot, an assistant for ACME Corp customers. Be concise and friendly.",
+  "welcomeMessage": "Hi — I'm MyBot. Ask me about our products, support, or anything else. Markdown is supported in this bubble.",
+  "starterPrompts": [
+    "How do I reset my password?",
+    "Where's my order?",
+    "Talk to a human"
+  ],
   "checkForUpdatesUrl": "https://github.com/you/your-fork/releases",
   "icon192": "/branding/icon-192.png",
   "icon512": "/branding/icon-512.png",
-  "defaultTheme": "dracula",
+  "defaultTheme": "my-brand",
   "hideBuiltInThemes": false,
   "themes": [
-    { "id": "my-brand", "name": "My Brand", "category": "light",
+    {
+      "id": "my-brand",
+      "name": "My Brand",
+      "category": "light",
       "swatches": ["#ffffff", "#ff5500", "#1a1a1a"],
-      "colors": { "bg": "#ffffff", "surface": "#f0f0f0", "primary": "#ff5500", "...": "..." } }
+      "colors": {
+        "bg":            "#ffffff",
+        "surface":       "#f5f5f5",
+        "surface-2":     "#ebebeb",
+        "surface-3":     "#dbdbdb",
+        "primary":       "#ff5500",
+        "on-primary":    "#ffffff",
+        "fg":            "#1a1a1a",
+        "fg-2":          "#4a4a4a",
+        "fg-3":          "#7a7a7a",
+        "fg-4":          "#a5a5a5",
+        "scrollbar":     "rgba(255,85,0,0.30)",
+        "scrollbar-h":   "rgba(255,85,0,0.55)",
+        "error-bg":      "rgba(220,53,69,0.10)",
+        "error-border":  "rgba(220,53,69,0.40)",
+        "error-fg":      "#b91c1c"
+      }
+    }
   ]
 }
 ```
 
-Drop your PNGs into `config/icons/` and reference them as `/branding/<filename>` — they're served by a runtime route, no rebuild needed.
+What each theme color drives:
+- `bg` → page background (around the chat column)
+- `surface` → chat bubbles, header, sidebar, settings panel, composer container
+- `surface-2` → form inputs, search bar, hover states, table headers
+- `surface-3` → deeper hover states inside dropdowns
+- `primary` → send button, links, scrollbar thumb, active-state highlights
+- `on-primary` → text on top of `primary` (e.g. send-icon color)
+- `fg` → main body text on surfaces
+- `fg-2` → secondary text (subtitles, labels)
+- `fg-3` → muted text (timestamps, hints)
+- `fg-4` → most muted (placeholders, empty-state text)
+- `scrollbar` / `scrollbar-h` → scrollbar thumb (idle / hover)
+- `error-bg` / `error-border` / `error-fg` → error banner styling
+
+Drop PNGs into `config/icons/` and reference them as `/branding/<filename>` — served by a runtime route, no rebuild needed. `category` must be `"dark"` or `"light"` (drives the picker's grouping). `swatches` is the 3-color preview shown in the Settings theme picker.
 
 ### MCP servers (`config/quill-mcp.json`)
+
+Two transport types: `http` (Streamable HTTP MCP servers) and `stdio` (local processes launched on demand). Add as many entries as you want — each gets its own connection at boot and tools are namespaced `<serverId>__<toolName>` on the wire to avoid collisions.
 
 ```json
 {
   "servers": {
-    "mslearn": { "type": "http", "url": "https://learn.microsoft.com/api/mcp", "label": "Microsoft Learn" },
-    "filesystem": { "type": "stdio", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"] }
+    "mslearn": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "label": "Microsoft Learn"
+    },
+    "github-public": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "label": "GitHub (public read)"
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+      "env": {
+        "DEBUG": "0"
+      },
+      "label": "Local filesystem"
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@db:5432/mydb"],
+      "label": "Postgres (read-only)"
+    }
   }
 }
 ```
 
-MCP servers are loaded at app boot. Restart the container after editing.
+Field reference per transport:
+- **`http`** — `type` (required), `url` (required), `label` (optional, shown in the MCP picker; defaults to the server id)
+- **`stdio`** — `type` (required), `command` (required, e.g. `npx`, `python`, `/usr/local/bin/my-mcp`), `args` (optional string array), `env` (optional string map; merged into the spawned process's environment), `label` (optional)
+
+MCP servers connect at app boot. Restart the container after editing this file.
 
 ### Kiosk mode
 
