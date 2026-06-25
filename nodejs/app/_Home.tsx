@@ -1707,11 +1707,12 @@ export default function Home({
                   {modelOpen && (
                     <>
                       <div className="fixed inset-0 z-30" onClick={() => setModelOpen(false)} />
-                      {/* Opens downward (top-full mt-1) — the pill now sits
-                          at the top of the composer, so dropping the menu
-                          UP would float it into the chat area; dropping
-                          DOWN keeps it within the composer's frame. */}
-                      <div className="absolute left-2.5 top-full z-40 mt-1 min-w-[14rem] rounded-lg border border-white/10 bg-surface-2 shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto">
+                      {/* Opens upward (bottom-full mb-1) — the composer
+                          lives at the bottom of the viewport on mobile,
+                          so dropping DOWN runs the menu off the fold.
+                          Floating UP into the chat area is the only
+                          direction that keeps the full list visible. */}
+                      <div className="absolute left-2.5 bottom-full z-40 mb-1 min-w-[14rem] rounded-lg border border-white/10 bg-surface-2 shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto">
                         <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-4 bg-surface flex items-center justify-between">
                           <span>{providerInfo.label}</span>
                           {providerInfo.category === 'local' && liveModelsLoading && <span className="text-fg-4">…</span>}
