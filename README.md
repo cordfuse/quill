@@ -1,6 +1,6 @@
 # Magpie
 
-[![version](https://img.shields.io/badge/version-0.3.0-2ea44f.svg)](https://github.com/cordfuse/magpie/releases)
+[![version](https://img.shields.io/badge/version-0.4.0-2ea44f.svg)](https://github.com/cordfuse/magpie/releases)
 [![license](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 
 <table>
@@ -47,6 +47,7 @@ A single Next.js app, no database, no signup. Point it at any of 12 LLM provider
 - **Drop-in branding** — edit `config/magpie.config.json` (app name, welcome message, starter prompts, theme colors, favicon, PWA icons). Drop a `config/custom.css` for fine-grained styling (fonts, per-area colors). Next page request picks up the change. No rebuild.
 - **25 built-in themes + custom themes + per-area CSS hooks** — 13 dark + 12 light shipped; add your own under `themes[]` in the config. The header, assistant bubble, and composer pill each carry a dedicated CSS class so deployments can restyle one without dragging the others.
 - **Document + image attachments** — PDF, DOCX, XLSX, plain text, images. Extracted server-side.
+- **Voice in / out** — mic button captures speech and auto-sends; speaker toggle reads assistant replies aloud. Uses the browser's Web Speech API (no extra API key, no server cost). Locale picked from `navigator.language` so non-English browsers get the right recognizer by default. Hide either via `MAGPIE_SHOW_VOICE_INPUT=0` / `MAGPIE_SHOW_VOICE_OUTPUT=0` for kiosks where voice isn't appropriate.
 - **Embeddable** — drop an `<iframe>` into any page; no `X-Frame-Options` by default. Kiosk flags + JWT-scoped per-iframe storage make it work cleanly as a support widget or in-app assistant. See [Embedding (iframe)](#embedding-iframe).
 - **One-click transcript export** — Download icon in the header saves the current chat as Markdown.
 - **PWA-ready** — manifest, installable on Android Chrome and desktop browsers.
@@ -127,6 +128,8 @@ In Docker, point local-provider base URLs at `host.docker.internal:<port>` (the 
 | `MAGPIE_SHOW_MCP` | Show the MCP server picker | `1` |
 | `MAGPIE_SHOW_MODEL_PICKER` | Show the provider/model pill | `1` |
 | `MAGPIE_SHOW_ATTACHMENTS` | Show the paperclip | `1` |
+| `MAGPIE_SHOW_VOICE_INPUT` | Show the mic button (Web Speech API STT) | `1` |
+| `MAGPIE_SHOW_VOICE_OUTPUT` | Show the speaker toggle (Web Speech API TTS) | `1` |
 
 Generate a `JWT_SECRET` with `openssl rand -hex 32`.
 
@@ -239,7 +242,7 @@ MCP servers connect at app boot. Restart the container after editing this file.
 
 ### Kiosk mode
 
-The eight `MAGPIE_SHOW_*` flags + `MAGPIE_PERSIST_CHAT` let you sculpt the UI surface per deployment. Hidden = the UI control is gone; the backing feature still runs server-side using whatever's configured. To disable a feature entirely, don't configure it (e.g. omit `TAVILY_API_KEY` and skip native search to disable web search even when the toggle is hidden).
+The ten `MAGPIE_SHOW_*` flags + `MAGPIE_PERSIST_CHAT` let you sculpt the UI surface per deployment. Hidden = the UI control is gone; the backing feature still runs server-side using whatever's configured. To disable a feature entirely, don't configure it (e.g. omit `TAVILY_API_KEY` and skip native search to disable web search even when the toggle is hidden).
 
 Typical embedded-widget config (no header, no chat history, no toggles — just an input):
 
@@ -251,6 +254,8 @@ MAGPIE_SHOW_WEB_SEARCH=0
 MAGPIE_SHOW_MCP=0
 MAGPIE_SHOW_MODEL_PICKER=0
 MAGPIE_SHOW_ATTACHMENTS=0
+MAGPIE_SHOW_VOICE_INPUT=0
+MAGPIE_SHOW_VOICE_OUTPUT=0
 ```
 
 Web search and MCP keep running on every message (if their keys/configs are set) — the toggles are just hidden. Use `MAGPIE_SHOW_HEADER_ICON=0` / `MAGPIE_SHOW_HEADER_TITLE=0` to keep the bar but drop just the icon or title.

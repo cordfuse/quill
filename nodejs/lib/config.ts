@@ -128,6 +128,8 @@ export interface KioskFlags {
   showMcp: boolean
   showModelPicker: boolean
   showAttachments: boolean
+  showVoiceInput: boolean
+  showVoiceOutput: boolean
 }
 
 interface LoadedConfig {
@@ -168,6 +170,8 @@ export function loadKioskFlags(): KioskFlags {
     showMcp:         envBool('MAGPIE_SHOW_MCP',          true),
     showModelPicker: envBool('MAGPIE_SHOW_MODEL_PICKER', true),
     showAttachments: envBool('MAGPIE_SHOW_ATTACHMENTS',  true),
+    showVoiceInput:  envBool('MAGPIE_SHOW_VOICE_INPUT',  true),
+    showVoiceOutput: envBool('MAGPIE_SHOW_VOICE_OUTPUT', true),
   }
 }
 

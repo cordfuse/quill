@@ -15,6 +15,7 @@ import {
   getTemperature, setTemperature,
   exportAll, importConversationsJson, resetAllData,
   conversationToMarkdown, downloadTextFile,
+  getTtsEnabled, setTtsEnabled,
 } from '@/lib/storage'
 import type { ChatMessage, Conversation, Attachment } from '@/lib/types'
 
@@ -111,6 +112,8 @@ interface MagpieFlags {
   showMcp: boolean
   showModelPicker: boolean
   showAttachments: boolean
+  showVoiceInput: boolean
+  showVoiceOutput: boolean
 }
 function getMagpieFlags(): MagpieFlags {
   const fallback = {
@@ -118,6 +121,7 @@ function getMagpieFlags(): MagpieFlags {
     showSettings: true, persistChat: true,
     showWebSearch: true, showMcp: true, showModelPicker: true,
     showAttachments: true,
+    showVoiceInput: true, showVoiceOutput: true,
   }
   if (typeof window === 'undefined') return fallback
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +137,8 @@ function getMagpieFlags(): MagpieFlags {
     showMcp:         f.showMcp         !== false,
     showModelPicker: f.showModelPicker !== false,
     showAttachments: f.showAttachments !== false,
+    showVoiceInput:  f.showVoiceInput  !== false,
+    showVoiceOutput: f.showVoiceOutput !== false,
   }
 }
 
@@ -164,6 +170,15 @@ const TrashIcon = () => (
 )
 const DownloadIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+)
+const MicIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+)
+const VolumeOnIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+)
+const VolumeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
 )
 const PencilIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -984,6 +999,13 @@ export default function Home({
   const [liveModelsLoading, setLiveModelsLoading] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([])
   const [attachMenuOpen, setAttachMenuOpen] = useState(false)
+  // Voice — STT (mic capture → textarea) and TTS (speak assistant
+  // replies). Capability is browser-determined; the UI hides each control
+  // if the underlying API isn't available, so we don't fire blank buttons.
+  const [voiceInputAvailable, setVoiceInputAvailable] = useState(false)
+  const [voiceOutputAvailable, setVoiceOutputAvailable] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [ttsEnabled, setTtsEnabledState] = useState(false)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const photosInputRef = useRef<HTMLInputElement>(null)
   const documentInputRef = useRef<HTMLInputElement>(null)
@@ -993,6 +1015,19 @@ export default function Home({
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const initialized = useRef(false)
+  // Voice refs — recognition instance for STT (so toggleListening can
+  // .stop() the in-flight one), final transcript buffer (accumulates
+  // across interim results), and a TTS-enabled ref so the streaming
+  // completion handler reads the current value without a state-stale
+  // closure trap.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
+  const finalTranscriptRef = useRef('')
+  const ttsEnabledRef = useRef(false)
+  // Always-current send() — refreshed on every render so the
+  // SpeechRecognition onend callback (defined inside a useCallback with
+  // its own stale closure on `input`) can invoke the up-to-date send.
+  const sendRef = useRef<(() => void) | null>(null)
 
   // ── init ──
   useEffect(() => {
@@ -1012,6 +1047,21 @@ export default function Home({
     const t = getTheme()
     setTheme(t)
     document.documentElement.setAttribute('data-theme', t)
+
+    // Voice capability probes. Web Speech API: SpeechRecognition (input)
+    // and SpeechSynthesis (output). Both gated separately because some
+    // browsers ship one without the other (Safari has TTS but limited
+    // STT, Firefox the reverse).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    setVoiceInputAvailable(!!SR)
+    setVoiceOutputAvailable(typeof window.speechSynthesis !== 'undefined')
+
+    // Hydrate the persisted TTS toggle. Default off — auto-speaking on
+    // every visit is invasive on shared devices (kiosks, public terminals).
+    const savedTts = getTtsEnabled()
+    setTtsEnabledState(savedTts)
+    ttsEnabledRef.current = savedTts
     // Kiosk: skip history hydration when chat persistence is off. Any
     // pre-existing localStorage entries stay untouched (a misconfiguration
     // revert shouldn't lose data) but they're not shown either.
@@ -1113,6 +1163,84 @@ export default function Home({
     setWebSearch(on)
     setWebSearchEnabled(on)
   }, [])
+
+  // Toggle TTS. Persists to localStorage so the setting follows the user
+  // across sessions. Cancels any in-flight speech when turning off so the
+  // current utterance doesn't keep playing.
+  const handleTtsToggle = useCallback(() => {
+    setTtsEnabledState(prev => {
+      const next = !prev
+      ttsEnabledRef.current = next
+      setTtsEnabled(next)
+      if (!next && typeof window !== 'undefined') window.speechSynthesis?.cancel()
+      return next
+    })
+  }, [])
+
+  // Speak a string via the Web Speech API. Strips common markdown so the
+  // synthesizer doesn't read out asterisks / hashes / pipe characters.
+  // Caller is expected to gate on ttsEnabledRef before invoking.
+  const speakText = useCallback((text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    const plain = text
+      .replace(/```[\s\S]*?```/g, ' (code block) ')   // skip code blocks entirely
+      .replace(/`([^`]+)`/g, '$1')                     // inline code
+      .replace(/#{1,6}\s+/g, '')                       // heading markers
+      .replace(/\*\*([^*]+)\*\*/g, '$1')               // bold
+      .replace(/\*([^*]+)\*/g, '$1')                   // italic
+      .replace(/_([^_]+)_/g, '$1')                     // underscore italic
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')         // [text](url) → text
+      .replace(/^\s*[-*+]\s+/gm, '')                   // bullet markers
+      .replace(/^\s*>\s?/gm, '')                       // blockquote markers
+      .replace(/\|/g, ' ')                             // table pipes
+      .replace(/\n{2,}/g, '. ')                        // paragraph breaks → pause
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!plain) return
+    window.speechSynthesis.cancel()  // never let two utterances overlap
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(plain))
+  }, [])
+
+  // Voice input — toggle SpeechRecognition. On stop (silence or manual),
+  // auto-sends the accumulated transcript so voice queries flow end-to-end
+  // without a tap-to-send step. Browsers prompt for mic permission on
+  // first invocation. Locale picked from navigator.language so non-English
+  // users get the right recognizer model by default.
+  const toggleListening = useCallback(() => {
+    if (typeof window === 'undefined') return
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+    window.speechSynthesis?.cancel()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = new SR()
+    r.continuous = false
+    r.interimResults = true
+    r.lang = navigator.language || 'en-US'
+    r.onstart = () => setIsListening(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onresult = (e: any) => {
+      const t = Array.from(e.results).map((res: any) => res[0].transcript).join('')
+      finalTranscriptRef.current = t
+      setInput(t)
+    }
+    r.onend = () => {
+      setIsListening(false)
+      const text = finalTranscriptRef.current.trim()
+      finalTranscriptRef.current = ''
+      // Defer to next tick so React flushes the setInput first, otherwise
+      // sendRef.current's closure may read empty input from this render.
+      if (text) setTimeout(() => { sendRef.current?.() }, 50)
+    }
+    r.onerror = () => setIsListening(false)
+    recognitionRef.current = r
+    r.start()
+  }, [isListening])
 
   const toggleMcp = useCallback((id: string) => {
     setEnabledMcpsState(prev => {
@@ -1252,6 +1380,7 @@ export default function Home({
   const stop = useCallback(() => {
     abortRef.current?.abort()
     setStreaming(false)
+    if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
   }, [])
 
   // ── attachment handlers ──
@@ -1378,6 +1507,10 @@ export default function Home({
       const finalAssistant: ChatMessage = {
         id: assistantId, role: 'assistant', content: res.message, sources: res.sources,
       }
+      // Speak the assistant's reply once the stream completes. Gated on
+      // ttsEnabledRef (not state) so this picks up the current toggle
+      // value rather than a stale snapshot from when send() was created.
+      if (ttsEnabledRef.current) speakText(res.message)
       const finalMessages = [...newMessages, finalAssistant]
       setMessages(finalMessages)
 
@@ -1427,6 +1560,9 @@ export default function Home({
   }, [streaming, messages, runFlowWith])
 
   const send = useCallback(async () => {
+    // Silence any TTS still playing from the previous turn so the user's
+    // new message doesn't talk over the assistant's old reply.
+    if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
     const text = input.trim()
     if ((!text && pendingAttachments.length === 0) || streaming) return
 
@@ -1452,6 +1588,11 @@ export default function Home({
     setPendingAttachments([])
     await runFlowWith([...messages, userMsg])
   }, [input, streaming, messages, pendingAttachments, runFlowWith])
+
+  // Refresh sendRef every render so voice-input's onend handler always
+  // invokes the latest send() (closing over the current `input` state).
+  // Cheap: just stamps a ref, no re-render trigger.
+  sendRef.current = send
 
   // Edit-and-resend: replace the chosen user message's content, drop every
   // message after it (the now-stale assistant response and any downstream
@@ -1822,6 +1963,27 @@ export default function Home({
                     )}
                   </div>
                 )}
+                {/* TTS toggle — speak assistant replies via Web Speech API
+                    once the stream completes. Hidden when the browser
+                    doesn't expose speechSynthesis (rare) or the operator
+                    disabled it via MAGPIE_SHOW_VOICE_OUTPUT=0. Off by
+                    default (auto-speak is invasive on shared devices);
+                    preference persists via localStorage. */}
+                {voiceOutputAvailable && flags.showVoiceOutput && (
+                  <button
+                    onClick={handleTtsToggle}
+                    title={ttsEnabled ? 'Voice output: ON — click to mute' : 'Voice output: off — click to speak replies'}
+                    aria-label="Toggle voice output"
+                    aria-pressed={ttsEnabled}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                      ttsEnabled
+                        ? 'text-primary bg-primary/15 hover:bg-primary/25'
+                        : 'text-fg-3 hover:bg-surface-2 hover:text-fg'
+                    }`}
+                  >
+                    {ttsEnabled ? <VolumeOnIcon /> : <VolumeOffIcon />}
+                  </button>
+                )}
                 {/* Web search toggle — only when server has TAVILY_API_KEY
                     AND the kiosk hasn't hidden the button. When hidden, the
                     server forces web search ON for every message. */}
@@ -1904,24 +2066,50 @@ export default function Home({
                   </div>
                 )}
               </div>
-              {streaming ? (
-                <button
-                  onClick={stop}
-                  title="Stop"
-                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-on-primary hover:opacity-90 transition-opacity"
-                >
-                  <StopIcon />
-                </button>
-              ) : (
-                <button
-                  onClick={send}
-                  disabled={!input.trim() && pendingAttachments.length === 0}
-                  title="Send"
-                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-on-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-                >
-                  <SendIcon />
-                </button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {/* Mic — toggle SpeechRecognition. Locale auto-picked
+                    from navigator.language so non-English users get the
+                    right recognizer by default. Auto-sends on silence
+                    (recognition.onend) — voice flow goes question →
+                    transcript → send without a tap. Hidden when the
+                    browser doesn't expose SpeechRecognition OR the
+                    operator disabled it via MAGPIE_SHOW_VOICE_INPUT=0.
+                    Disabled while streaming to avoid mid-reply input. */}
+                {voiceInputAvailable && flags.showVoiceInput && (
+                  <button
+                    onClick={toggleListening}
+                    disabled={streaming}
+                    title={isListening ? 'Stop recording' : 'Voice input'}
+                    aria-label="Voice input"
+                    aria-pressed={isListening}
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isListening
+                        ? 'text-red-400 bg-red-500/10 animate-pulse'
+                        : 'text-fg-3 hover:bg-surface-2 hover:text-fg'
+                    }`}
+                  >
+                    <MicIcon />
+                  </button>
+                )}
+                {streaming ? (
+                  <button
+                    onClick={stop}
+                    title="Stop"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-on-primary hover:opacity-90 transition-opacity"
+                  >
+                    <StopIcon />
+                  </button>
+                ) : (
+                  <button
+                    onClick={send}
+                    disabled={!input.trim() && pendingAttachments.length === 0}
+                    title="Send"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-on-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    <SendIcon />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

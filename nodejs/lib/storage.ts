@@ -193,6 +193,23 @@ export function setWebSearchEnabled(enabled: boolean) {
   else localStorage.removeItem(WEB_SEARCH_KEY)
 }
 
+// ─── TTS (text-to-speech) toggle ────────────────────────────────────────────
+// Same persistence pattern as web search. When on, assistant responses are
+// spoken via the Web Speech API once the stream completes. Default off
+// (auto-speaking on every visit is invasive on shared devices).
+
+const TTS_KEY = 'magpie_tts_enabled'
+
+export function getTtsEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  return localStorage.getItem(TTS_KEY) === '1'
+}
+
+export function setTtsEnabled(enabled: boolean) {
+  if (enabled) localStorage.setItem(TTS_KEY, '1')
+  else localStorage.removeItem(TTS_KEY)
+}
+
 // ─── MCP server selection (per-user, persisted) ─────────────────────────────
 //
 // Set of server IDs the user has toggled on in the composer's MCP picker.
