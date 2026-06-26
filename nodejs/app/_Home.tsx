@@ -1721,10 +1721,10 @@ export default function Home({
             </span>
           )}
           <div className="flex-1" />
-          {/* Single kebab menu — holds new chat, download, delete, settings.
-              Only renders when at least one of its children would be visible. */}
-          {(flags.persistChat || messages.length > 0 || flags.showSettings) && (
-            <div className="relative">
+          {/* Single kebab menu — holds reload, new chat, download, delete,
+              settings. Reload is unconditional so the menu is always
+              rendered; the other items are state/flag-gated. */}
+          <div className="relative">
               <button
                 onClick={() => setHeaderMenuOpen(v => !v)}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-3 hover:bg-surface hover:text-fg transition-colors"
@@ -1748,6 +1748,13 @@ export default function Home({
                         <span>{t('header.newChat', 'New chat')}</span>
                       </button>
                     )}
+                    <button
+                      onClick={() => { setHeaderMenuOpen(false); window.location.reload() }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-fg hover:bg-surface-3 transition-colors"
+                    >
+                      <RefreshIcon />
+                      <span>{t('header.refresh', 'Reload')}</span>
+                    </button>
                     {messages.length > 0 && (
                       <button
                         onClick={() => {
@@ -1785,7 +1792,7 @@ export default function Home({
                     {flags.showSettings && (
                       <button
                         onClick={() => { setHeaderMenuOpen(false); setSettingsOpen(true) }}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-fg hover:bg-surface-3 transition-colors border-t border-white/10"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-fg hover:bg-surface-3 transition-colors"
                       >
                         <GearIcon />
                         <span>{t('header.settings', 'Settings')}</span>
@@ -1795,7 +1802,6 @@ export default function Home({
                 </>
               )}
             </div>
-          )}
         </header>
         )}
 
