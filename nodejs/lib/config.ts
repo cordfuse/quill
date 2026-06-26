@@ -1,15 +1,15 @@
-// Branding + custom theme config. RUNTIME-loaded from magpie.config.json so
+// Branding + custom theme config. RUNTIME-loaded from chatframe.config.json so
 // dropping a new file on a hosted instance takes effect on the next request
 // — no rebuild required. Server-only (uses fs); client code receives values
 // via SSR (server components pass as props, or layout.tsx injects them into
 // the rendered HTML).
 //
 // File lookup precedence:
-//   1. $MAGPIE_CONFIG_PATH if set (explicit file)
-//   2. $MAGPIE_CONFIG_DIR/magpie.config.json if set (operator-mounted volume)
-//   3. <cwd>/config/magpie.config.json (default convention; the standalone
+//   1. $CHATFRAME_CONFIG_PATH if set (explicit file)
+//   2. $CHATFRAME_CONFIG_DIR/chatframe.config.json if set (operator-mounted volume)
+//   3. <cwd>/config/chatframe.config.json (default convention; the standalone
 //      server chdirs to .next/standalone/, so we also probe its ancestors)
-//   4. <cwd>/magpie.config.json (legacy path, kept for ad-hoc setups)
+//   4. <cwd>/chatframe.config.json (legacy path, kept for ad-hoc setups)
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -17,10 +17,10 @@ import { BUILT_IN_LOCALES, type LocalizableString, type LocalizableStringArray }
 
 // Single source of truth for the customization directory. Used by the
 // config loader, the MCP loader, and the icon-serving route. Set
-// MAGPIE_CONFIG_DIR to mount a different volume; default `./config` keeps
+// CHATFRAME_CONFIG_DIR to mount a different volume; default `./config` keeps
 // dev simple — the repo ships a populated config/ dir.
 export function getConfigDir(): string {
-  if (process.env.MAGPIE_CONFIG_DIR) return process.env.MAGPIE_CONFIG_DIR
+  if (process.env.CHATFRAME_CONFIG_DIR) return process.env.CHATFRAME_CONFIG_DIR
   return path.join(process.cwd(), 'config')
 }
 
@@ -42,7 +42,7 @@ export interface CustomTheme {
   colors: Partial<Record<ThemeColorKey, string>>
 }
 
-export interface MagpieConfig {
+export interface ChatframeConfig {
   name: string
   shortName: string
   // Localizable: plain string (used for every locale) OR per-locale map
@@ -67,14 +67,14 @@ export interface MagpieConfig {
   icon512: string
 }
 
-const defaults: MagpieConfig = {
-  name: 'Magpie',
-  shortName: 'Magpie',
+const defaults: ChatframeConfig = {
+  name: 'Chatframe',
+  shortName: 'Chatframe',
   tagline: 'Embeddable AI chatbot framework',
   defaultSystemPrompt: 'You are a helpful AI assistant.',
   welcomeMessage: '',
   starterPrompts: [],
-  checkForUpdatesUrl: 'https://github.com/cordfuse/magpie/releases',
+  checkForUpdatesUrl: 'https://github.com/cordfuse/chatframe/releases',
   defaultTheme: 'dracula',
   hideBuiltInThemes: false,
   themes: [],
@@ -96,22 +96,22 @@ const BUILT_IN_THEME_IDS = [
 const BUILT_IN_BG_FALLBACK = '#282a36'  // Dracula bg, matches :root in globals.css
 
 function locateConfigFile(): string | null {
-  const explicit = process.env.MAGPIE_CONFIG_PATH
+  const explicit = process.env.CHATFRAME_CONFIG_PATH
   if (explicit) {
     try { if (fs.statSync(explicit).isFile()) return explicit } catch { /* fall through */ }
     return null
   }
   const dir = getConfigDir()
   const candidates = [
-    path.join(dir, 'magpie.config.json'),
-    // Standalone server chdirs to .next/standalone/ — when MAGPIE_CONFIG_DIR
+    path.join(dir, 'chatframe.config.json'),
+    // Standalone server chdirs to .next/standalone/ — when CHATFRAME_CONFIG_DIR
     // resolves to a relative ./config that doesn't exist there, walk up.
-    path.join(process.cwd(), '..', 'config', 'magpie.config.json'),
-    path.join(process.cwd(), '..', '..', 'config', 'magpie.config.json'),
+    path.join(process.cwd(), '..', 'config', 'chatframe.config.json'),
+    path.join(process.cwd(), '..', '..', 'config', 'chatframe.config.json'),
     // Legacy ad-hoc paths (file directly in CWD or a parent).
-    path.join(process.cwd(), 'magpie.config.json'),
-    path.join(process.cwd(), '..', 'magpie.config.json'),
-    path.join(process.cwd(), '..', '..', 'magpie.config.json'),
+    path.join(process.cwd(), 'chatframe.config.json'),
+    path.join(process.cwd(), '..', 'chatframe.config.json'),
+    path.join(process.cwd(), '..', '..', 'chatframe.config.json'),
   ]
   for (const p of candidates) {
     try {
@@ -136,7 +136,7 @@ export interface KioskFlags {
 }
 
 interface LoadedConfig {
-  config: MagpieConfig
+  config: ChatframeConfig
   themeCss: string
   // Raw CSS read from <configDir>/custom.css (if the file exists). Injected
   // into <head> after themeCss so it can override any built-in token. Sourced
@@ -153,7 +153,7 @@ interface LoadedConfig {
   // with English first for picker display.
   locales: Record<string, Record<string, string>>
   localeCodes: string[]
-  // Server-default locale: env MAGPIE_LOCALE if set and valid, else 'en'.
+  // Server-default locale: env CHATFRAME_LOCALE if set and valid, else 'en'.
   // The actual rendered locale per-request is resolved from the cookie
   // (see resolveLocale in lib/i18n/server.ts) using this as fallback.
   defaultLocale: string
@@ -162,8 +162,8 @@ interface LoadedConfig {
 // Kiosk visibility flags. All default ON (full UI). Setting any to '0' or
 // 'false' hides the corresponding control. A hidden control means the feature
 // runs server-side with whatever's configured (web search uses TAVILY if set;
-// MCP uses every server in magpie-mcp.json; model picker uses MAGPIE_PROVIDER +
-// MAGPIE_MODEL). To disable a feature entirely, don't configure it.
+// MCP uses every server in chatframe-mcp.json; model picker uses CHATFRAME_PROVIDER +
+// CHATFRAME_MODEL). To disable a feature entirely, don't configure it.
 function envBool(name: string, defaultValue: boolean): boolean {
   const v = process.env[name]
   if (v === undefined || v === '') return defaultValue
@@ -174,24 +174,24 @@ function envBool(name: string, defaultValue: boolean): boolean {
 
 export function loadKioskFlags(): KioskFlags {
   return {
-    showHeader:      envBool('MAGPIE_SHOW_HEADER',       true),
-    showHeaderIcon:  envBool('MAGPIE_SHOW_HEADER_ICON',  true),
-    showHeaderTitle: envBool('MAGPIE_SHOW_HEADER_TITLE', true),
-    showSettings:    envBool('MAGPIE_SHOW_SETTINGS',     true),
-    persistChat:     envBool('MAGPIE_PERSIST_CHAT',      true),
-    showWebSearch:   envBool('MAGPIE_SHOW_WEB_SEARCH',   true),
-    showMcp:         envBool('MAGPIE_SHOW_MCP',          true),
-    showModelPicker: envBool('MAGPIE_SHOW_MODEL_PICKER', true),
-    showAttachments: envBool('MAGPIE_SHOW_ATTACHMENTS',  true),
-    showVoiceInput:  envBool('MAGPIE_SHOW_VOICE_INPUT',  true),
-    showVoiceOutput: envBool('MAGPIE_SHOW_VOICE_OUTPUT', true),
+    showHeader:      envBool('CHATFRAME_SHOW_HEADER',       true),
+    showHeaderIcon:  envBool('CHATFRAME_SHOW_HEADER_ICON',  true),
+    showHeaderTitle: envBool('CHATFRAME_SHOW_HEADER_TITLE', true),
+    showSettings:    envBool('CHATFRAME_SHOW_SETTINGS',     true),
+    persistChat:     envBool('CHATFRAME_PERSIST_CHAT',      true),
+    showWebSearch:   envBool('CHATFRAME_SHOW_WEB_SEARCH',   true),
+    showMcp:         envBool('CHATFRAME_SHOW_MCP',          true),
+    showModelPicker: envBool('CHATFRAME_SHOW_MODEL_PICKER', true),
+    showAttachments: envBool('CHATFRAME_SHOW_ATTACHMENTS',  true),
+    showVoiceInput:  envBool('CHATFRAME_SHOW_VOICE_INPUT',  true),
+    showVoiceOutput: envBool('CHATFRAME_SHOW_VOICE_OUTPUT', true),
   }
 }
 
 // Reads the file fresh each call. JSON is tiny (~1KB) and Node caches the
 // directory lookup; the read itself is microseconds. No memoization here is
 // intentional — we want drop-file-and-refresh behavior.
-export function loadMagpieConfig(): LoadedConfig {
+export function loadChatframeConfig(): LoadedConfig {
   const file = locateConfigFile()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let raw: any = {}
@@ -229,7 +229,7 @@ export function loadMagpieConfig(): LoadedConfig {
     return fb
   }
 
-  const config: MagpieConfig = {
+  const config: ChatframeConfig = {
     name: typeof raw.name === 'string' ? raw.name : defaults.name,
     shortName: typeof raw.shortName === 'string' ? raw.shortName : defaults.shortName,
     tagline: parseLocalizableString(raw.tagline, defaults.tagline),
@@ -271,7 +271,7 @@ export function loadMagpieConfig(): LoadedConfig {
 
   const themeColor = config.themes.find(t => t.id === defaultTheme)?.colors.bg ?? BUILT_IN_BG_FALLBACK
 
-  // Optional operator stylesheet. Lives next to magpie.config.json in the
+  // Optional operator stylesheet. Lives next to chatframe.config.json in the
   // mounted config volume so it can be edited with full editor support
   // (syntax highlighting, etc.) rather than as an escaped JSON string.
   // Missing file is normal — most deployments don't need it.
@@ -283,7 +283,7 @@ export function loadMagpieConfig(): LoadedConfig {
   // i18n: merge built-in locales with any operator-supplied JSON files in
   // <configDir>/locales/. Operator JSON may override a built-in key or add
   // an entirely new locale. Same drop-file-and-refresh ergonomics as
-  // custom.css and magpie-mcp.json.
+  // custom.css and chatframe-mcp.json.
   const locales: Record<string, Record<string, string>> = {}
   for (const [code, map] of Object.entries(BUILT_IN_LOCALES)) locales[code] = { ...map }
   const localesDir = path.join(getConfigDir(), 'locales')
@@ -308,7 +308,7 @@ export function loadMagpieConfig(): LoadedConfig {
   const localeCodes = Object.keys(locales).sort((a, b) =>
     a === 'en' ? -1 : b === 'en' ? 1 : a.localeCompare(b)
   )
-  const envLocale = (process.env.MAGPIE_LOCALE ?? '').trim()
+  const envLocale = (process.env.CHATFRAME_LOCALE ?? '').trim()
   const defaultLocale = envLocale && locales[envLocale] ? envLocale : 'en'
 
   return {

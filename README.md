@@ -1,6 +1,6 @@
-# Magpie
+# Chatframe
 
-[![version](https://img.shields.io/badge/version-0.6.0-2ea44f.svg)](https://github.com/cordfuse/magpie/releases)
+[![version](https://img.shields.io/badge/version-0.6.0-2ea44f.svg)](https://github.com/cordfuse/chatframe/releases)
 [![license](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 
 <table>
@@ -17,11 +17,11 @@
 <table>
   <tr>
     <td align="center"><sub>Kiosk mode — gear visible</sub><br><img src="docs/screenshots/05-kiosk.jpg" width="260" alt="Kiosk mode rebranded as ACME Inc. with custom theme; gear icon still visible"></td>
-    <td align="center"><sub>Full kiosk — gear also hidden</sub><br><img src="docs/screenshots/06-kiosk-full.jpg" width="260" alt="Full kiosk mode: same app with the gear icon also hidden via MAGPIE_SHOW_SETTINGS=0"></td>
+    <td align="center"><sub>Full kiosk — gear also hidden</sub><br><img src="docs/screenshots/06-kiosk-full.jpg" width="260" alt="Full kiosk mode: same app with the gear icon also hidden via CHATFRAME_SHOW_SETTINGS=0"></td>
   </tr>
 </table>
 
-<p align="center"><sub><b>The same app in two kiosk configs</b> — rebranded as "ACME Inc.", custom theme, history sidebar / web search / MCP picker hidden. Right variant adds <code>MAGPIE_SHOW_SETTINGS=0</code> to drop the gear too. Note the live <code>.NET 10</code> answer in both — web search runs transparently server-side even with no globe toggle.</sub></p>
+<p align="center"><sub><b>The same app in two kiosk configs</b> — rebranded as "ACME Inc.", custom theme, history sidebar / web search / MCP picker hidden. Right variant adds <code>CHATFRAME_SHOW_SETTINGS=0</code> to drop the gear too. Note the live <code>.NET 10</code> answer in both — web search runs transparently server-side even with no globe toggle.</sub></p>
 
 Embeddable AI chatbot framework. Drop-in branding, kiosk-friendly, MCP-ready.
 
@@ -33,22 +33,22 @@ The middle ground — *"a polished chatbot I can drop into my site, white-label,
 
 ## The solution
 
-Magpie: one Docker image + one mounted config volume. Set env vars for an LLM provider and a JWT secret, edit one JSON file to rebrand, and you have a branded chatbot running on your domain. To lock it down for an embed or public kiosk deployment, flip a handful of `MAGPIE_SHOW_*` env flags — the matching UI controls disappear and the features keep running transparently server-side.
+Chatframe: one Docker image + one mounted config volume. Set env vars for an LLM provider and a JWT secret, edit one JSON file to rebrand, and you have a branded chatbot running on your domain. To lock it down for an embed or public kiosk deployment, flip a handful of `CHATFRAME_SHOW_*` env flags — the matching UI controls disappear and the features keep running transparently server-side.
 
 A single Next.js app, no database, no signup. Point it at any of 12 LLM providers, mount a config volume of icons/themes/MCP servers, and ship.
 
 ## Features
 
 - **Multi-provider via [Vercel AI SDK](https://ai-sdk.dev)** — 8 cloud (Anthropic, OpenAI, Gemini, Groq, Mistral, Cohere, Perplexity, AWS Bedrock) + 3 local OpenAI-compatible (Ollama, llama.cpp, LM Studio). Switch with one env var. Prompt caching enabled on Anthropic out of the box (~10% input-token cost on multi-turn cache hits).
-- **MCP support** — add any number of MCP servers (HTTP or stdio) via `config/magpie-mcp.json`. Tools are namespaced and auto-discovered.
-- **Web search — native or Tavily** — `MAGPIE_SEARCH_BACKEND=auto` (default) uses the provider's first-party search where available (Anthropic web_search, Google grounding, Perplexity Sonar) and falls back to Tavily for the rest. Set to `native` or `tavily` to force one.
+- **MCP support** — add any number of MCP servers (HTTP or stdio) via `config/chatframe-mcp.json`. Tools are namespaced and auto-discovered.
+- **Web search — native or Tavily** — `CHATFRAME_SEARCH_BACKEND=auto` (default) uses the provider's first-party search where available (Anthropic web_search, Google grounding, Perplexity Sonar) and falls back to Tavily for the rest. Set to `native` or `tavily` to force one.
 - **Resumable streams** — server keeps a 5-minute replay buffer; clients reconnect via `Last-Event-ID` after dropped sockets (mobile-tab background, proxy hiccup, network blip). No lost tokens.
 - **Kiosk mode** — nine env flags to lock down the UI surface: header (whole bar / just title / just icon), settings panel, chat history, web search, MCP picker, model picker, attachments. Hidden controls still run server-side using whatever's configured.
-- **Drop-in branding** — edit `config/magpie.config.json` (app name, welcome message, starter prompts, theme colors, favicon, PWA icons). Drop a `config/custom.css` for fine-grained styling (fonts, per-area colors). Next page request picks up the change. No rebuild.
+- **Drop-in branding** — edit `config/chatframe.config.json` (app name, welcome message, starter prompts, theme colors, favicon, PWA icons). Drop a `config/custom.css` for fine-grained styling (fonts, per-area colors). Next page request picks up the change. No rebuild.
 - **25 built-in themes + custom themes + per-area CSS hooks** — 13 dark + 12 light shipped; add your own under `themes[]` in the config. The header, assistant bubble, and composer pill each carry a dedicated CSS class so deployments can restyle one without dragging the others.
 - **Document + image attachments** — PDF, DOCX, XLSX, plain text, images. Extracted server-side.
-- **Voice in / out** — mic button captures speech and auto-sends; speaker toggle reads assistant replies aloud. Uses the browser's Web Speech API (no extra API key, no server cost). Recognizer + synthesizer pick the active UI locale, so language selection in Settings reconfigures voice too. Hide either via `MAGPIE_SHOW_VOICE_INPUT=0` / `MAGPIE_SHOW_VOICE_OUTPUT=0` for kiosks where voice isn't appropriate.
-- **i18n (4 locales built-in, infinite via drop-file)** — English, Spanish, French, German ship in the image. Set the default with `MAGPIE_LOCALE`, let users pick in Settings, or drop a `config/locales/<code>.json` to add any other language without a rebuild. See [Internationalisation](#internationalisation).
+- **Voice in / out** — mic button captures speech and auto-sends; speaker toggle reads assistant replies aloud. Uses the browser's Web Speech API (no extra API key, no server cost). Recognizer + synthesizer pick the active UI locale, so language selection in Settings reconfigures voice too. Hide either via `CHATFRAME_SHOW_VOICE_INPUT=0` / `CHATFRAME_SHOW_VOICE_OUTPUT=0` for kiosks where voice isn't appropriate.
+- **i18n (4 locales built-in, infinite via drop-file)** — English, Spanish, French, German ship in the image. Set the default with `CHATFRAME_LOCALE`, let users pick in Settings, or drop a `config/locales/<code>.json` to add any other language without a rebuild. See [Internationalisation](#internationalisation).
 - **Embeddable** — drop an `<iframe>` into any page; no `X-Frame-Options` by default. Kiosk flags + JWT-scoped per-iframe storage make it work cleanly as a support widget or in-app assistant. See [Embedding (iframe)](#embedding-iframe).
 - **One-click transcript export** — Download icon in the header saves the current chat as Markdown.
 - **PWA-ready** — manifest, installable on Android Chrome and desktop browsers.
@@ -90,7 +90,7 @@ All operator config lives in two places:
 
 ### Provider API keys
 
-Set the env var for the provider you want, plus `MAGPIE_PROVIDER` to select it.
+Set the env var for the provider you want, plus `CHATFRAME_PROVIDER` to select it.
 
 | Provider | Env var(s) | Category |
 |---|---|---|
@@ -105,7 +105,7 @@ Set the env var for the provider you want, plus `MAGPIE_PROVIDER` to select it.
 | Ollama | `OLLAMA_BASE_URL` (default `http://localhost:11434/v1`) | local |
 | llama.cpp | `LLAMACPP_BASE_URL` (default `http://localhost:8080/v1`) | local |
 | LM Studio | `LMSTUDIO_BASE_URL` (default `http://localhost:1234/v1`) | local |
-| Web search (Tavily) | `TAVILY_API_KEY` (optional — see `MAGPIE_SEARCH_BACKEND` below) | — |
+| Web search (Tavily) | `TAVILY_API_KEY` (optional — see `CHATFRAME_SEARCH_BACKEND` below) | — |
 
 In Docker, point local-provider base URLs at `host.docker.internal:<port>` (the compose files set `extra_hosts: ["host.docker.internal:host-gateway"]`).
 
@@ -114,30 +114,30 @@ In Docker, point local-provider base URLs at `host.docker.internal:<port>` (the 
 | Var | Purpose | Default |
 |---|---|---|
 | `JWT_SECRET` | Signs the per-device auth token. Anything ≥32 random chars. | (dev fallback — must be set in production) |
-| `MAGPIE_PROVIDER` | Selected provider id (see table above) | `anthropic` |
-| `MAGPIE_MODEL` | Provider-specific model id | `claude-sonnet-4-6` |
-| `MAGPIE_SYSTEM_PROMPT` | Server-default system prompt | `"You are a helpful AI assistant."` |
-| `MAGPIE_TEMPERATURE` | Sampling temperature | `1.0` |
-| `MAGPIE_SEARCH_BACKEND` | Web search source: `auto` (native when available, Tavily otherwise), `native` (Anthropic / Google / Perplexity only), or `tavily` (uniform) | `auto` |
-| `MAGPIE_LOCALE` | Default UI language for new visitors (`en`, `es`, `fr`, `de`, or any operator-supplied code). User's Settings choice overrides per device via cookie. | `en` |
-| `MAGPIE_CONFIG_DIR` | Where `magpie.config.json` + `magpie-mcp.json` + `icons/` live | `./config` |
-| `MAGPIE_SHOW_HEADER` | Show the top header bar at all (`1`/`0`) | `1` |
-| `MAGPIE_SHOW_HEADER_ICON` | Show the app icon in the header | `1` |
-| `MAGPIE_SHOW_HEADER_TITLE` | Show the app name in the header | `1` |
-| `MAGPIE_SHOW_SETTINGS` | Show the settings gear (`1`/`0`) | `1` |
-| `MAGPIE_PERSIST_CHAT` | Persist chat history to localStorage + show sidebar | `1` |
-| `MAGPIE_SHOW_WEB_SEARCH` | Show the web search globe toggle | `1` |
-| `MAGPIE_SHOW_MCP` | Show the MCP server picker | `1` |
-| `MAGPIE_SHOW_MODEL_PICKER` | Show the provider/model pill | `1` |
-| `MAGPIE_SHOW_ATTACHMENTS` | Show the paperclip | `1` |
-| `MAGPIE_SHOW_VOICE_INPUT` | Show the mic button (Web Speech API STT) | `1` |
-| `MAGPIE_SHOW_VOICE_OUTPUT` | Show the speaker toggle (Web Speech API TTS) | `1` |
+| `CHATFRAME_PROVIDER` | Selected provider id (see table above) | `anthropic` |
+| `CHATFRAME_MODEL` | Provider-specific model id | `claude-sonnet-4-6` |
+| `CHATFRAME_SYSTEM_PROMPT` | Server-default system prompt | `"You are a helpful AI assistant."` |
+| `CHATFRAME_TEMPERATURE` | Sampling temperature | `1.0` |
+| `CHATFRAME_SEARCH_BACKEND` | Web search source: `auto` (native when available, Tavily otherwise), `native` (Anthropic / Google / Perplexity only), or `tavily` (uniform) | `auto` |
+| `CHATFRAME_LOCALE` | Default UI language for new visitors (`en`, `es`, `fr`, `de`, or any operator-supplied code). User's Settings choice overrides per device via cookie. | `en` |
+| `CHATFRAME_CONFIG_DIR` | Where `chatframe.config.json` + `chatframe-mcp.json` + `icons/` live | `./config` |
+| `CHATFRAME_SHOW_HEADER` | Show the top header bar at all (`1`/`0`) | `1` |
+| `CHATFRAME_SHOW_HEADER_ICON` | Show the app icon in the header | `1` |
+| `CHATFRAME_SHOW_HEADER_TITLE` | Show the app name in the header | `1` |
+| `CHATFRAME_SHOW_SETTINGS` | Show the settings gear (`1`/`0`) | `1` |
+| `CHATFRAME_PERSIST_CHAT` | Persist chat history to localStorage + show sidebar | `1` |
+| `CHATFRAME_SHOW_WEB_SEARCH` | Show the web search globe toggle | `1` |
+| `CHATFRAME_SHOW_MCP` | Show the MCP server picker | `1` |
+| `CHATFRAME_SHOW_MODEL_PICKER` | Show the provider/model pill | `1` |
+| `CHATFRAME_SHOW_ATTACHMENTS` | Show the paperclip | `1` |
+| `CHATFRAME_SHOW_VOICE_INPUT` | Show the mic button (Web Speech API STT) | `1` |
+| `CHATFRAME_SHOW_VOICE_OUTPUT` | Show the speaker toggle (Web Speech API TTS) | `1` |
 
 Generate a `JWT_SECRET` with `openssl rand -hex 32`.
 
-### Branding (`config/magpie.config.json`)
+### Branding (`config/chatframe.config.json`)
 
-Every field below is optional — anything you omit falls back to Magpie's defaults. The example shows a complete custom-themed deployment.
+Every field below is optional — anything you omit falls back to Chatframe's defaults. The example shows a complete custom-themed deployment.
 
 ```json
 {
@@ -200,7 +200,7 @@ What each theme color drives:
 
 Drop PNGs into `config/icons/` and reference them as `/branding/<filename>` — served by a runtime route, no rebuild needed. `category` must be `"dark"` or `"light"` (drives the picker's grouping). `swatches` is the 3-color preview shown in the Settings theme picker.
 
-### MCP servers (`config/magpie-mcp.json`)
+### MCP servers (`config/chatframe-mcp.json`)
 
 Two transport types: `http` (Streamable HTTP MCP servers) and `stdio` (local processes launched on demand). Add as many entries as you want — each gets its own connection at boot and tools are namespaced `<serverId>__<toolName>` on the wire to avoid collisions.
 
@@ -244,31 +244,31 @@ MCP servers connect at app boot. Restart the container after editing this file.
 
 ### Kiosk mode
 
-The ten `MAGPIE_SHOW_*` flags + `MAGPIE_PERSIST_CHAT` let you sculpt the UI surface per deployment. Hidden = the UI control is gone; the backing feature still runs server-side using whatever's configured. To disable a feature entirely, don't configure it (e.g. omit `TAVILY_API_KEY` and skip native search to disable web search even when the toggle is hidden).
+The ten `CHATFRAME_SHOW_*` flags + `CHATFRAME_PERSIST_CHAT` let you sculpt the UI surface per deployment. Hidden = the UI control is gone; the backing feature still runs server-side using whatever's configured. To disable a feature entirely, don't configure it (e.g. omit `TAVILY_API_KEY` and skip native search to disable web search even when the toggle is hidden).
 
 Typical embedded-widget config (no header, no chat history, no toggles — just an input):
 
 ```bash
-MAGPIE_SHOW_HEADER=0
-MAGPIE_SHOW_SETTINGS=0
-MAGPIE_PERSIST_CHAT=0
-MAGPIE_SHOW_WEB_SEARCH=0
-MAGPIE_SHOW_MCP=0
-MAGPIE_SHOW_MODEL_PICKER=0
-MAGPIE_SHOW_ATTACHMENTS=0
-MAGPIE_SHOW_VOICE_INPUT=0
-MAGPIE_SHOW_VOICE_OUTPUT=0
+CHATFRAME_SHOW_HEADER=0
+CHATFRAME_SHOW_SETTINGS=0
+CHATFRAME_PERSIST_CHAT=0
+CHATFRAME_SHOW_WEB_SEARCH=0
+CHATFRAME_SHOW_MCP=0
+CHATFRAME_SHOW_MODEL_PICKER=0
+CHATFRAME_SHOW_ATTACHMENTS=0
+CHATFRAME_SHOW_VOICE_INPUT=0
+CHATFRAME_SHOW_VOICE_OUTPUT=0
 ```
 
-Web search and MCP keep running on every message (if their keys/configs are set) — the toggles are just hidden. Use `MAGPIE_SHOW_HEADER_ICON=0` / `MAGPIE_SHOW_HEADER_TITLE=0` to keep the bar but drop just the icon or title.
+Web search and MCP keep running on every message (if their keys/configs are set) — the toggles are just hidden. Use `CHATFRAME_SHOW_HEADER_ICON=0` / `CHATFRAME_SHOW_HEADER_TITLE=0` to keep the bar but drop just the icon or title.
 
 ### Custom CSS
 
-Drop a `nodejs/config/custom.css` file (next to `magpie.config.json` in the mounted volume) and Magpie injects it into every page's `<head>` after the built-in styles. Use it for custom fonts, per-area color overrides, or any CSS the deployment needs without rebuilding the image. Three dedicated classes are exposed for targeting:
+Drop a `nodejs/config/custom.css` file (next to `chatframe.config.json` in the mounted volume) and Chatframe injects it into every page's `<head>` after the built-in styles. Use it for custom fonts, per-area color overrides, or any CSS the deployment needs without rebuilding the image. Three dedicated classes are exposed for targeting:
 
-- `.magpie-header` — top bar
-- `.magpie-assistant-bubble` — assistant message bubbles
-- `.magpie-composer-pill` — input composer
+- `.chatframe-header` — top bar
+- `.chatframe-assistant-bubble` — assistant message bubbles
+- `.chatframe-composer-pill` — input composer
 
 Each defaults to `var(--surface)` but reads from `--header-bg` / `--assistant-bubble-bg` / `--composer-bg` if you set them, so restyling one area doesn't drag the others along.
 
@@ -284,24 +284,24 @@ Example `custom.css` swapping the font and giving the header its own color:
 
 ## Internationalisation
 
-Magpie ships with four UI locales built-in: **English, Spanish, French, German**. The active language is resolved per-request:
+Chatframe ships with four UI locales built-in: **English, Spanish, French, German**. The active language is resolved per-request:
 
-1. The `magpie_locale` cookie (set when a user picks a language in Settings) wins.
-2. Otherwise the `MAGPIE_LOCALE` env var if it names a valid locale.
+1. The `chatframe_locale` cookie (set when a user picks a language in Settings) wins.
+2. Otherwise the `CHATFRAME_LOCALE` env var if it names a valid locale.
 3. Otherwise English.
 
 Server-side resolution means SSR renders directly in the chosen language — no hydration flash, no first-paint English-then-swap. The `<html lang>` attribute and voice STT/TTS recognizer locale all align to the active choice.
 
 ### Localizing operator content
 
-Branding fields in `magpie.config.json` accept **either** a plain string (used for every locale, backward-compatible) **or** a per-locale object:
+Branding fields in `chatframe.config.json` accept **either** a plain string (used for every locale, backward-compatible) **or** a per-locale object:
 
 ```json
 {
   "welcomeMessage": {
-    "en": "Hi — I'm Magpie. Ask me anything.",
-    "es": "Hola — soy Magpie. Pregúntame lo que quieras.",
-    "de": "Hallo — ich bin Magpie. Frag mich einfach."
+    "en": "Hi — I'm Chatframe. Ask me anything.",
+    "es": "Hola — soy Chatframe. Pregúntame lo que quieras.",
+    "de": "Hallo — ich bin Chatframe. Frag mich einfach."
   },
   "starterPrompts": {
     "en": ["What's new in .NET 10?", "Explain Kubernetes pods"],
@@ -319,11 +319,11 @@ Fields accepting this shape: `welcomeMessage`, `starterPrompts`, `defaultSystemP
 
 ### AI replies in the user's language
 
-When the active UI locale is non-English, Magpie automatically appends `Respond in <language> unless the user writes in a different language.` to the system prompt. So picking Spanish in the picker means the model answers in Spanish without any operator config. Opt out by setting `MAGPIE_LOCALE_HINT=0` (useful if your system prompt already handles language explicitly).
+When the active UI locale is non-English, Chatframe automatically appends `Respond in <language> unless the user writes in a different language.` to the system prompt. So picking Spanish in the picker means the model answers in Spanish without any operator config. Opt out by setting `CHATFRAME_LOCALE_HINT=0` (useful if your system prompt already handles language explicitly).
 
 ### Adding a new language
 
-Drop a JSON file at `nodejs/config/locales/<code>.json` (e.g. `it.json` for Italian, `ja.json` for Japanese, `pt-BR.json` for Brazilian Portuguese). Same convention as `custom.css` and `magpie-mcp.json` — file appears in the picker on the next page load, no rebuild.
+Drop a JSON file at `nodejs/config/locales/<code>.json` (e.g. `it.json` for Italian, `ja.json` for Japanese, `pt-BR.json` for Brazilian Portuguese). Same convention as `custom.css` and `chatframe-mcp.json` — file appears in the picker on the next page load, no rebuild.
 
 The JSON is a flat string-to-string map. Keys mirror the `t()` calls in components; any missing key falls back to the English fallback embedded at the call site, so partial translations are fine.
 
@@ -349,15 +349,15 @@ To see all keys currently in use, grep the source: `rg "t\(" nodejs/app | rg -o 
 
 ### Disabling the language picker
 
-If your deployment serves a single language and you don't want users switching, set `MAGPIE_LOCALE` to your target language. The picker still appears in Settings — to hide it entirely you'd hide Settings (`MAGPIE_SHOW_SETTINGS=0`). A separate kiosk flag for "language picker only" is a candidate future feature.
+If your deployment serves a single language and you don't want users switching, set `CHATFRAME_LOCALE` to your target language. The picker still appears in Settings — to hide it entirely you'd hide Settings (`CHATFRAME_SHOW_SETTINGS=0`). A separate kiosk flag for "language picker only" is a candidate future feature.
 
 ## Embedding (iframe)
 
-Magpie ships no `X-Frame-Options` or `frame-ancestors` headers by default, so any page on any origin can embed it in an `<iframe>`. Drop the snippet below into your site:
+Chatframe ships no `X-Frame-Options` or `frame-ancestors` headers by default, so any page on any origin can embed it in an `<iframe>`. Drop the snippet below into your site:
 
 ```html
 <iframe
-  src="https://your-magpie-host.example.com/"
+  src="https://your-chatframe-host.example.com/"
   style="width: 100%; height: 600px; border: 0; border-radius: 12px;"
   title="AI chat"
   allow="clipboard-write"
@@ -370,7 +370,7 @@ For a bottom-right floating chat bubble (the typical support-widget pattern), wr
 ```html
 <div style="position: fixed; bottom: 16px; right: 16px; width: min(380px, 100vw); height: min(640px, 80vh); z-index: 9999;">
   <iframe
-    src="https://your-magpie-host.example.com/"
+    src="https://your-chatframe-host.example.com/"
     style="width: 100%; height: 100%; border: 0; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.18);"
     title="AI chat"
     allow="clipboard-write"
@@ -381,29 +381,29 @@ For a bottom-right floating chat bubble (the typical support-widget pattern), wr
 **Recommended kiosk flags for embedded use** (`docker/.env`):
 
 ```bash
-MAGPIE_SHOW_HEADER=0          # no second app header inside your site's chrome
-MAGPIE_SHOW_SETTINGS=0        # don't expose provider/system-prompt settings
-MAGPIE_PERSIST_CHAT=0         # iframes get isolated localStorage anyway
-MAGPIE_SHOW_MODEL_PICKER=0    # force a fixed provider/model via MAGPIE_PROVIDER+MAGPIE_MODEL
+CHATFRAME_SHOW_HEADER=0          # no second app header inside your site's chrome
+CHATFRAME_SHOW_SETTINGS=0        # don't expose provider/system-prompt settings
+CHATFRAME_PERSIST_CHAT=0         # iframes get isolated localStorage anyway
+CHATFRAME_SHOW_MODEL_PICKER=0    # force a fixed provider/model via CHATFRAME_PROVIDER+CHATFRAME_MODEL
 ```
 
 **Security notes:**
 
-- Magpie is served over HTTPS in any real embed scenario — browsers refuse mixed-content iframes on HTTPS parent pages.
-- The parent page's CSP must permit the Magpie origin in `frame-src` if a strict CSP is in place. Example: `Content-Security-Policy: frame-src https://your-magpie-host.example.com;`
-- Each browser device gets a JWT-signed `magpie_token` cookie scoped to the Magpie origin — iframes are isolated, so an embedded Magpie has its own conversation history, separate from a direct visit to the same host.
-- To restrict who can embed Magpie, add a `Content-Security-Policy: frame-ancestors 'self' https://your-customer.com;` header at the Magpie reverse proxy (Caddy `header` directive). Default behaviour is allow-all because the "drop-in" positioning would be undermined by a default lockdown.
+- Chatframe is served over HTTPS in any real embed scenario — browsers refuse mixed-content iframes on HTTPS parent pages.
+- The parent page's CSP must permit the Chatframe origin in `frame-src` if a strict CSP is in place. Example: `Content-Security-Policy: frame-src https://your-chatframe-host.example.com;`
+- Each browser device gets a JWT-signed `chatframe_token` cookie scoped to the Chatframe origin — iframes are isolated, so an embedded Chatframe has its own conversation history, separate from a direct visit to the same host.
+- To restrict who can embed Chatframe, add a `Content-Security-Policy: frame-ancestors 'self' https://your-customer.com;` header at the Chatframe reverse proxy (Caddy `header` directive). Default behaviour is allow-all because the "drop-in" positioning would be undermined by a default lockdown.
 
 ## Repo layout
 
 ```
-magpie/
+chatframe/
 ├── nodejs/                 # the Next.js app
 │   ├── app/                # routes + components
 │   ├── lib/                # client + server helpers
 │   ├── config/             # runtime config (mounted as a volume in Docker)
-│   │   ├── magpie.config.json     # branding + themes + welcome + starter prompts
-│   │   ├── magpie-mcp.json        # MCP server list
+│   │   ├── chatframe.config.json     # branding + themes + welcome + starter prompts
+│   │   ├── chatframe-mcp.json        # MCP server list
 │   │   ├── custom.css             # operator CSS overrides — optional
 │   │   ├── locales/               # operator locale JSON files — optional
 │   │   └── icons/                # PNGs served via /branding/*
@@ -414,7 +414,7 @@ magpie/
 
 ## Architecture (one paragraph)
 
-Next.js 15 App Router with React 19 + Tailwind. Server components SSR-render the shell and inject config into `window.__MAGPIE` so first paint matches the branded config (no hydration mismatch when a fork rebrands). The chat API decouples the LLM run from the HTTP response — a background promise feeds events into an in-memory replay buffer, and the response stream is one of N possible consumers (the original `POST /api/chat` plus any `GET /api/chat/replay/[id]` reconnects with `Last-Event-ID`). MCP clients are long-lived per process; tool calls are namespaced by server id and dispatched at message time. JWT-signed device tokens scope each browser to its own conversations in `localStorage`.
+Next.js 15 App Router with React 19 + Tailwind. Server components SSR-render the shell and inject config into `window.__CHATFRAME` so first paint matches the branded config (no hydration mismatch when a fork rebrands). The chat API decouples the LLM run from the HTTP response — a background promise feeds events into an in-memory replay buffer, and the response stream is one of N possible consumers (the original `POST /api/chat` plus any `GET /api/chat/replay/[id]` reconnects with `Last-Event-ID`). MCP clients are long-lived per process; tool calls are namespaced by server id and dispatched at message time. JWT-signed device tokens scope each browser to its own conversations in `localStorage`.
 
 ## Provenance
 

@@ -74,10 +74,10 @@ const BUILT_IN_THEME_GROUPS: { label: string; ids: Theme[] }[] = [
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'
 
-// Branding pulled from window.__MAGPIE (injected by app/layout.tsx from
-// the runtime magpie.config.json read). All fields fall back to "Magpie"
+// Branding pulled from window.__CHATFRAME (injected by app/layout.tsx from
+// the runtime chatframe.config.json read). All fields fall back to "Chatframe"
 // defaults when window or the global aren't available (SSR, tests).
-interface MagpieBranding {
+interface ChatframeBranding {
   name: string
   shortName: string
   welcomeMessage: string
@@ -85,15 +85,15 @@ interface MagpieBranding {
   customThemes: { id: string; name: string; category: 'dark' | 'light'; swatches?: [string, string, string]; colors?: Record<string, string> }[]
   hideBuiltIns: boolean
 }
-function getMagpieBranding(): MagpieBranding {
+function getChatframeBranding(): ChatframeBranding {
   if (typeof window === 'undefined') {
-    return { name: 'Magpie', shortName: 'Magpie', welcomeMessage: '', checkForUpdatesUrl: '#', customThemes: [], hideBuiltIns: false }
+    return { name: 'Chatframe', shortName: 'Chatframe', welcomeMessage: '', checkForUpdatesUrl: '#', customThemes: [], hideBuiltIns: false }
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = (window as any).__MAGPIE ?? {}
+  const w = (window as any).__CHATFRAME ?? {}
   return {
-    name: w.name ?? 'Magpie',
-    shortName: w.shortName ?? 'Magpie',
+    name: w.name ?? 'Chatframe',
+    shortName: w.shortName ?? 'Chatframe',
     welcomeMessage: typeof w.welcomeMessage === 'string' ? w.welcomeMessage : '',
     checkForUpdatesUrl: w.checkForUpdatesUrl ?? '#',
     customThemes: Array.isArray(w.customThemes) ? w.customThemes : [],
@@ -101,9 +101,9 @@ function getMagpieBranding(): MagpieBranding {
   }
 }
 
-// Kiosk visibility flags from window.__MAGPIE.flags. All default true (full
+// Kiosk visibility flags from window.__CHATFRAME.flags. All default true (full
 // UI) when the global isn't present, so non-kiosk SSR/tests behave normally.
-interface MagpieFlags {
+interface ChatframeFlags {
   showHeader: boolean
   showHeaderIcon: boolean
   showHeaderTitle: boolean
@@ -116,7 +116,7 @@ interface MagpieFlags {
   showVoiceInput: boolean
   showVoiceOutput: boolean
 }
-function getMagpieFlags(): MagpieFlags {
+function getChatframeFlags(): ChatframeFlags {
   const fallback = {
     showHeader: true, showHeaderIcon: true, showHeaderTitle: true,
     showSettings: true, persistChat: true,
@@ -126,7 +126,7 @@ function getMagpieFlags(): MagpieFlags {
   }
   if (typeof window === 'undefined') return fallback
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const f = (window as any).__MAGPIE?.flags
+  const f = (window as any).__CHATFRAME?.flags
   if (!f || typeof f !== 'object') return fallback
   return {
     showHeader:      f.showHeader      !== false,
@@ -145,7 +145,7 @@ function getMagpieFlags(): MagpieFlags {
 
 // ─── icons ───────────────────────────────────────────────────────────────────
 
-const MagpieIcon = () => (
+const ChatframeIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
     <path d="M20.5 3.5c-7 1-12 6-13.5 13.5L4 20l3-3.5c7.5-1.5 12.5-6.5 13.5-13z" />
     <path d="M4 20l8-8" />
@@ -355,10 +355,10 @@ function SettingsPanel({
     setTimeout(onClose, 240)
   }
 
-  // Merge built-in themes with any custom themes from magpie.config.json
-  // (read at runtime via window.__MAGPIE). Custom themes are appended to the
+  // Merge built-in themes with any custom themes from chatframe.config.json
+  // (read at runtime via window.__CHATFRAME). Custom themes are appended to the
   // built-in groups by category; if hideBuiltIns is true, only customs show.
-  const branding = getMagpieBranding()
+  const branding = getChatframeBranding()
   const customThemeMeta: ThemeMeta[] = branding.customThemes.map(t => ({
     id: t.id,
     label: t.name,
@@ -567,7 +567,7 @@ function SettingsPanel({
                 const trimmed = promptDraft.trim()
                 onSystemPrompt(trimmed.length > 0 ? trimmed : null)
               }}
-              placeholder='Server default — set MAGPIE_SYSTEM_PROMPT, or override per-user here.'
+              placeholder='Server default — set CHATFRAME_SYSTEM_PROMPT, or override per-user here.'
               rows={3}
               className="w-full rounded-lg border border-white/10 bg-surface-2 px-3 py-2 text-xs text-fg placeholder:text-fg-4 outline-none focus:ring-1 focus:ring-primary/40 resize-y min-h-[4.5rem]"
             />
@@ -741,7 +741,7 @@ function Sidebar({
         {/* brand + close (mobile) */}
         <div className="flex items-center justify-between px-3 py-3 shrink-0 min-w-[260px]">
           <div className="flex items-center gap-2.5">
-            <MagpieIcon />
+            <ChatframeIcon />
             <span className="text-sm font-medium text-fg whitespace-nowrap">{appName}</span>
           </div>
           <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg transition-colors lg:hidden" aria-label={t('sidebar.closeSidebar', 'Close sidebar')}>
@@ -749,7 +749,7 @@ function Sidebar({
           </button>
         </div>
 
-        {/* tabs-row equivalent — mighty puts Delete-all-chats here, right-aligned, under a thin divider. Magpie has no tabs, so the row is just label + clear-all */}
+        {/* tabs-row equivalent — mighty puts Delete-all-chats here, right-aligned, under a thin divider. Chatframe has no tabs, so the row is just label + clear-all */}
         <div className="flex items-center border-b border-white/10 ml-3 mr-[17px] h-9">
           <span className="text-xs font-medium text-fg-3">{t('sidebar.chats', 'Chats')}</span>
           <div className="flex-1" />
@@ -934,7 +934,7 @@ function MessageItem({ msg, streaming, isLastAssistant, onEditAndResend, onRegen
   return (
     <div className="group flex flex-col items-start gap-0.5">
       <div className="flex items-end gap-1.5 max-w-full">
-        <div className="magpie-assistant-bubble min-w-0 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-fg">
+        <div className="chatframe-assistant-bubble min-w-0 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-fg">
           {isEmptyStreaming ? (
             <span className="inline-flex gap-1 items-end h-4">
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-fg-3" />
@@ -992,7 +992,7 @@ function MessageItem({ msg, streaming, isLastAssistant, onEditAndResend, onRegen
 
 export default function Home({
   initialConvId,
-  appName = 'Magpie',
+  appName = 'Chatframe',
   welcomeMessage = '',
   starterPrompts = [],
   flags: serverFlags,
@@ -1001,13 +1001,13 @@ export default function Home({
   appName?: string
   welcomeMessage?: string
   starterPrompts?: string[]
-  flags?: MagpieFlags
+  flags?: ChatframeFlags
 } = {}) {
   // Kiosk visibility flags. Source of truth is the server prop (SSR-correct,
-  // no hydration mismatch). Fall back to window.__MAGPIE when the prop is
+  // no hydration mismatch). Fall back to window.__CHATFRAME when the prop is
   // missing (older callers/tests). Both ultimately resolve to "all true"
   // (full UI) when nothing's configured.
-  const flags: MagpieFlags = serverFlags ?? getMagpieFlags()
+  const flags: ChatframeFlags = serverFlags ?? getChatframeFlags()
   const t = useT()
   const locale = useLocale()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -1087,8 +1087,8 @@ export default function Home({
     // and that hid real errors). Doesn't throw — the chat works regardless.
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.info('[magpie] SW registered, scope:', reg.scope))
-        .catch(err => console.warn('[magpie] SW registration failed:', err))
+        .then(reg => console.info('[chatframe] SW registered, scope:', reg.scope))
+        .catch(err => console.warn('[chatframe] SW registration failed:', err))
     }
     const t = getTheme()
     setTheme(t)
@@ -1697,7 +1697,7 @@ export default function Home({
       {/* main column */}
       <div className="flex-1 flex flex-col min-w-0 bg-bg">
         {flags.showHeader && (
-        <header className="magpie-header px-3 py-3 flex items-center gap-1 shrink-0 z-10">
+        <header className="chatframe-header px-3 py-3 flex items-center gap-1 shrink-0 z-10">
           {flags.persistChat && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -1710,7 +1710,7 @@ export default function Home({
           )}
           {(flags.showHeaderIcon || flags.showHeaderTitle) && (
             <span className="flex items-center gap-1.5">
-              {flags.showHeaderIcon && <MagpieIcon />}
+              {flags.showHeaderIcon && <ChatframeIcon />}
               {flags.showHeaderTitle && <h1 className="text-sm font-medium text-fg">{appName}</h1>}
             </span>
           )}
@@ -1757,7 +1757,7 @@ export default function Home({
                             ? (conversations.find(c => c.id === activeId)
                                 ?? { id: activeId, title: 'Chat', messages, createdAt: Date.now(), updatedAt: Date.now() })
                             : { id: 'unsaved', title: autoTitle(messages), messages, createdAt: Date.now(), updatedAt: Date.now() }
-                          const safeTitle = conv.title.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'magpie-chat'
+                          const safeTitle = conv.title.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'chatframe-chat'
                           downloadTextFile(conversationToMarkdown(conv), `${safeTitle}.md`, 'text/markdown')
                         }}
                         className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-fg hover:bg-surface-3 transition-colors"
@@ -1807,7 +1807,7 @@ export default function Home({
                   ? (
                     <div className="group flex flex-col items-start gap-0.5">
                       <div className="flex items-end gap-1.5 max-w-full">
-                        <div className="magpie-assistant-bubble min-w-0 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-fg">
+                        <div className="chatframe-assistant-bubble min-w-0 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-fg">
                           <div className="prose prose-sm max-w-none [&>*]:my-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:bg-surface-2 [&_pre]:bg-surface-2 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto">
                             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ pre: CodeBlock, table: TableBlock }}>{welcomeMessage}</ReactMarkdown>
                           </div>
@@ -1868,13 +1868,13 @@ export default function Home({
         )}
 
         {/* composer */}
-        <div className="magpie-composer px-4 pb-4 pt-2 shrink-0">
+        <div className="chatframe-composer px-4 pb-4 pt-2 shrink-0">
           {/* hidden file inputs */}
           <input ref={cameraInputRef}   type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickFile('image')} />
           <input ref={photosInputRef}   type="file" accept="image/*"                         className="hidden" onChange={onPickFile('image')} />
           <input ref={documentInputRef} type="file" accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.json,.csv,.xml,.html,.htm,.rtf,.yaml,.yml,.log" className="hidden" onChange={onPickFile('document')} />
 
-          <div className="magpie-composer-pill max-w-3xl mx-auto rounded-3xl border border-white/10 transition-colors focus-within:border-primary/40">
+          <div className="chatframe-composer-pill max-w-3xl mx-auto rounded-3xl border border-white/10 transition-colors focus-within:border-primary/40">
             {/* pending attachment chips (above the textarea) */}
             {pendingAttachments.length > 0 && (
               <div className="flex flex-wrap gap-2 px-3 pt-3">
@@ -1911,8 +1911,8 @@ export default function Home({
 
             {/* Model pill — moved above the textarea so it has its own row
                 instead of competing for space with the action buttons at
-                the bottom. Hidden in kiosk mode → server uses MAGPIE_PROVIDER
-                + MAGPIE_MODEL env defaults regardless of any stored client
+                the bottom. Hidden in kiosk mode → server uses CHATFRAME_PROVIDER
+                + CHATFRAME_MODEL env defaults regardless of any stored client
                 preference. */}
             {providers.length > 0 && flags.showModelPicker && (() => {
               const providerInfo = providers.find(p => p.id === provider)
@@ -2055,7 +2055,7 @@ export default function Home({
                 {/* TTS toggle — speak assistant replies via Web Speech API
                     once the stream completes. Hidden when the browser
                     doesn't expose speechSynthesis (rare) or the operator
-                    disabled it via MAGPIE_SHOW_VOICE_OUTPUT=0. Off by
+                    disabled it via CHATFRAME_SHOW_VOICE_OUTPUT=0. Off by
                     default (auto-speak is invasive on shared devices);
                     preference persists via localStorage. */}
                 {voiceOutputAvailable && flags.showVoiceOutput && (
@@ -2166,7 +2166,7 @@ export default function Home({
                     (recognition.onend) — voice flow goes question →
                     transcript → send without a tap. Hidden when the
                     browser doesn't expose SpeechRecognition OR the
-                    operator disabled it via MAGPIE_SHOW_VOICE_INPUT=0.
+                    operator disabled it via CHATFRAME_SHOW_VOICE_INPUT=0.
                     Disabled while streaming to avoid mid-reply input. */}
                 {voiceInputAvailable && flags.showVoiceInput && (
                   <button
@@ -2248,7 +2248,7 @@ export default function Home({
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `magpie-export-${new Date().toISOString().slice(0, 10)}.json`
+            a.download = `chatframe-export-${new Date().toISOString().slice(0, 10)}.json`
             a.click()
             URL.revokeObjectURL(url)
           }}

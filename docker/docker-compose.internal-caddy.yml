@@ -1,9 +1,9 @@
-# Magpie — single-host compose for deployments where the host ALREADY runs a
+# Chatframe — single-host compose for deployments where the host ALREADY runs a
 # reverse proxy (Caddy / nginx / Traefik) attached to a shared docker network.
 #
 # Pattern matches the cachy infra setup: a host-level Caddy container lives
 # on `proxy_net` and routes <service>.linux.internal → <container>:<port>.
-# Magpie joins that same network and exposes nothing on the host — Caddy
+# Chatframe joins that same network and exposes nothing on the host — Caddy
 # proxies by container name.
 #
 # Pre-flight:
@@ -15,31 +15,31 @@
 #   4. docker compose -f docker-compose.internal-caddy.yml up -d --build
 
 services:
-  magpie:
+  chatframe:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: cordfuse/magpie:dev
-    container_name: magpie
+    image: cordfuse/chatframe:dev
+    container_name: chatframe
     restart: unless-stopped
 
     env_file:
       - .env
 
     environment:
-      MAGPIE_CONFIG_DIR: /app/config
+      CHATFRAME_CONFIG_DIR: /app/config
 
-      MAGPIE_PROVIDER: ${MAGPIE_PROVIDER:-anthropic}
-      MAGPIE_MODEL: ${MAGPIE_MODEL:-claude-sonnet-4-6}
-      MAGPIE_SYSTEM_PROMPT: ${MAGPIE_SYSTEM_PROMPT:-You are a helpful AI assistant.}
-      MAGPIE_TEMPERATURE: ${MAGPIE_TEMPERATURE:-1.0}
+      CHATFRAME_PROVIDER: ${CHATFRAME_PROVIDER:-anthropic}
+      CHATFRAME_MODEL: ${CHATFRAME_MODEL:-claude-sonnet-4-6}
+      CHATFRAME_SYSTEM_PROMPT: ${CHATFRAME_SYSTEM_PROMPT:-You are a helpful AI assistant.}
+      CHATFRAME_TEMPERATURE: ${CHATFRAME_TEMPERATURE:-1.0}
 
-      MAGPIE_SHOW_SETTINGS:     ${MAGPIE_SHOW_SETTINGS:-1}
-      MAGPIE_PERSIST_CHAT:      ${MAGPIE_PERSIST_CHAT:-1}
-      MAGPIE_SHOW_WEB_SEARCH:   ${MAGPIE_SHOW_WEB_SEARCH:-1}
-      MAGPIE_SHOW_MCP:          ${MAGPIE_SHOW_MCP:-1}
-      MAGPIE_SHOW_MODEL_PICKER: ${MAGPIE_SHOW_MODEL_PICKER:-1}
-      MAGPIE_SHOW_ATTACHMENTS:  ${MAGPIE_SHOW_ATTACHMENTS:-1}
+      CHATFRAME_SHOW_SETTINGS:     ${CHATFRAME_SHOW_SETTINGS:-1}
+      CHATFRAME_PERSIST_CHAT:      ${CHATFRAME_PERSIST_CHAT:-1}
+      CHATFRAME_SHOW_WEB_SEARCH:   ${CHATFRAME_SHOW_WEB_SEARCH:-1}
+      CHATFRAME_SHOW_MCP:          ${CHATFRAME_SHOW_MCP:-1}
+      CHATFRAME_SHOW_MODEL_PICKER: ${CHATFRAME_SHOW_MODEL_PICKER:-1}
+      CHATFRAME_SHOW_ATTACHMENTS:  ${CHATFRAME_SHOW_ATTACHMENTS:-1}
 
     volumes:
       # Same persistent config volume convention as the other compose files.

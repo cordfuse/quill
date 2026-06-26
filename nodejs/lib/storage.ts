@@ -2,7 +2,7 @@ import type { Conversation, ChatMessage } from './types'
 
 // ─── Conversations ────────────────────────────────────────────────────────────
 
-const CONV_KEY = 'magpie_conversations'
+const CONV_KEY = 'chatframe_conversations'
 const MAX_CONVERSATIONS = 50
 
 export function loadConversations(): Conversation[] {
@@ -98,8 +98,8 @@ export function relativeTime(ts: number): string {
 // ─── Theme ────────────────────────────────────────────────────────────────────
 //
 // Built-in palette = 25 popular dev themes (13 dark + 12 light). Forkers can
-// add their own via magpie.config.json (themes[]); those IDs flow through to
-// the client via window.__MAGPIE (set by app/layout.tsx).
+// add their own via chatframe.config.json (themes[]); those IDs flow through to
+// the client via window.__CHATFRAME (set by app/layout.tsx).
 //
 // To add a built-in theme: append the id to BUILT_IN_THEME_IDS in
 // lib/config.ts, add a `[data-theme="<id>"]` block in app/globals.css, and
@@ -107,22 +107,22 @@ export function relativeTime(ts: number): string {
 
 // Theme is just a string — IDs come from runtime config and aren't known
 // at compile time. Validation happens at runtime via the allowed set
-// the server injects into window.__MAGPIE.
+// the server injects into window.__CHATFRAME.
 export type Theme = string
 
-const THEME_KEY = 'magpie_theme'
+const THEME_KEY = 'chatframe_theme'
 
 // Read SSR-injected globals. SSR safe: returns sensible fallbacks when
 // window isn't defined yet (server render, tests).
 function getInjectedAllowedThemes(): string[] | null {
   if (typeof window === 'undefined') return null
-  const w = window as unknown as { __MAGPIE?: { allowedThemeIds?: string[] } }
-  return w.__MAGPIE?.allowedThemeIds ?? null
+  const w = window as unknown as { __CHATFRAME?: { allowedThemeIds?: string[] } }
+  return w.__CHATFRAME?.allowedThemeIds ?? null
 }
 function getInjectedDefaultTheme(): string {
   if (typeof window === 'undefined') return 'dracula'
-  const w = window as unknown as { __MAGPIE?: { defaultTheme?: string } }
-  return w.__MAGPIE?.defaultTheme ?? 'dracula'
+  const w = window as unknown as { __CHATFRAME?: { defaultTheme?: string } }
+  return w.__CHATFRAME?.defaultTheme ?? 'dracula'
 }
 
 export function getTheme(): Theme {
@@ -148,8 +148,8 @@ export function saveTheme(theme: Theme) {
 // Both fall back gracefully — server-side validates the selection and falls
 // back to its registry default if anything's stale or unknown.
 
-const PROVIDER_KEY = 'magpie_provider'
-const MODELS_KEY = 'magpie_models'  // JSON map: { providerId: modelId }
+const PROVIDER_KEY = 'chatframe_provider'
+const MODELS_KEY = 'chatframe_models'  // JSON map: { providerId: modelId }
 
 export function getSelectedProvider(): string | null {
   if (typeof window === 'undefined') return null
@@ -181,7 +181,7 @@ export function setSelectedModel(provider: string, model: string) {
 // applies to whatever conversation is active. Avoids the "no conv id until
 // after first send" chicken-and-egg. Per-conv override can come later.
 
-const WEB_SEARCH_KEY = 'magpie_web_search'
+const WEB_SEARCH_KEY = 'chatframe_web_search'
 
 export function getWebSearchEnabled(): boolean {
   if (typeof window === 'undefined') return false
@@ -198,7 +198,7 @@ export function setWebSearchEnabled(enabled: boolean) {
 // spoken via the Web Speech API once the stream completes. Default off
 // (auto-speaking on every visit is invasive on shared devices).
 
-const TTS_KEY = 'magpie_tts_enabled'
+const TTS_KEY = 'chatframe_tts_enabled'
 
 export function getTtsEnabled(): boolean {
   if (typeof window === 'undefined') return false
@@ -216,7 +216,7 @@ export function setTtsEnabled(enabled: boolean) {
 // Same model as web search: sticky across sessions, applies to the active
 // conversation. Stored as a JSON array of strings.
 
-const MCP_ENABLED_KEY = 'magpie_mcp_enabled'
+const MCP_ENABLED_KEY = 'chatframe_mcp_enabled'
 
 export function getEnabledMcps(): string[] {
   if (typeof window === 'undefined') return []
@@ -236,12 +236,12 @@ export function setEnabledMcps(ids: string[]) {
 // ─── Generation settings (user overrides — operator defaults via env) ────────
 //
 // All three are `null` when the user hasn't set them; in that case the server
-// falls back to MAGPIE_SYSTEM_PROMPT / MAGPIE_TEMPERATURE / MAGPIE_MAX_TOKENS env
+// falls back to CHATFRAME_SYSTEM_PROMPT / CHATFRAME_TEMPERATURE / CHATFRAME_MAX_TOKENS env
 // vars, then to hardcoded defaults. Read/written as strings since localStorage
 // is string-only — callers handle conversion.
 
-const SYSTEM_PROMPT_KEY = 'magpie_system_prompt'
-const TEMPERATURE_KEY   = 'magpie_temperature'
+const SYSTEM_PROMPT_KEY = 'chatframe_system_prompt'
+const TEMPERATURE_KEY   = 'chatframe_temperature'
 
 export function getCustomSystemPrompt(): string | null {
   if (typeof window === 'undefined') return null
@@ -266,15 +266,15 @@ export function setTemperature(t: number | null) {
 
 // ─── Export / Import / Reset ─────────────────────────────────────────────────
 
-export interface MagpieExport {
-  magpie_export_version: 1
+export interface ChatframeExport {
+  chatframe_export_version: 1
   exported_at: string
   conversations: Conversation[]
 }
 
-export function exportAll(): MagpieExport {
+export function exportAll(): ChatframeExport {
   return {
-    magpie_export_version: 1,
+    chatframe_export_version: 1,
     exported_at: new Date().toISOString(),
     conversations: loadConversations(),
   }
@@ -285,7 +285,7 @@ export interface ImportResult { imported: number; skipped: number; total: number
 export function importConversationsJson(json: string): ImportResult {
   const parsed = JSON.parse(json)
   if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid file')
-  if (parsed.magpie_export_version !== 1) throw new Error('Unsupported export version')
+  if (parsed.chatframe_export_version !== 1) throw new Error('Unsupported export version')
   if (!Array.isArray(parsed.conversations)) throw new Error('No conversations in file')
 
   const existing = loadConversations()
@@ -304,7 +304,7 @@ export function importConversationsJson(json: string): ImportResult {
   return { imported, skipped, total: parsed.conversations.length }
 }
 
-// Wipes every magpie_* localStorage key (conversations, theme, provider, model,
+// Wipes every chatframe_* localStorage key (conversations, theme, provider, model,
 // web search, generation settings, send key). Also drops the auth token +
 // device id so the next session starts completely fresh.
 export function resetAllData() {
@@ -313,7 +313,7 @@ export function resetAllData() {
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
     if (!k) continue
-    if (k.startsWith('magpie_') || k === 'auth_token' || k === 'device_id') toRemove.push(k)
+    if (k.startsWith('chatframe_') || k === 'auth_token' || k === 'device_id') toRemove.push(k)
   }
   for (const k of toRemove) localStorage.removeItem(k)
 }

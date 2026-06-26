@@ -1,6 +1,6 @@
 // Multi-provider chat engine on the Vercel AI SDK v6.
 //
-// Web search backend is controlled by MAGPIE_SEARCH_BACKEND:
+// Web search backend is controlled by CHATFRAME_SEARCH_BACKEND:
 //   - native: use the provider's first-party search where available
 //     (Anthropic web_search, Google grounding, Perplexity built-in).
 //     Providers without native search get no search.
@@ -36,7 +36,7 @@ import { getToolsForServers, executeMcpToolCall, isMcpToolName } from './mcp'
 // Add a new provider:
 //   1. Append an entry to `config/providers.yaml`
 //   2. Add a matching factory below in `FACTORIES`
-//   3. Restart magpie
+//   3. Restart chatframe
 //
 // Add a new model to an existing provider: edit YAML only.
 // Relabel / reorder models: edit YAML only.
@@ -70,7 +70,7 @@ const FACTORIES: Record<string, InternalModelFactory> = {
   bedrock:    (m, _p) => bedrock(m),
 
   // Gemini needs custom env-var handling: @ai-sdk/google's default
-  // singleton reads GOOGLE_GENERATIVE_AI_API_KEY, but the Magpie env
+  // singleton reads GOOGLE_GENERATIVE_AI_API_KEY, but the Chatframe env
   // convention (and most users' existing setups) uses whatever the YAML
   // declares as `envKey` — typically GEMINI_API_KEY. Build the provider
   // explicitly with the YAML-named key so an env change between requests
@@ -251,7 +251,7 @@ async function buildMcpTools(serverIds: string[]) {
 export type SearchBackend = 'native' | 'tavily' | 'auto'
 
 function readBackendFlag(): SearchBackend {
-  const raw = (process.env.MAGPIE_SEARCH_BACKEND ?? 'auto').toLowerCase()
+  const raw = (process.env.CHATFRAME_SEARCH_BACKEND ?? 'auto').toLowerCase()
   if (raw === 'native' || raw === 'tavily') return raw
   return 'auto'
 }

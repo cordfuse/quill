@@ -1,5 +1,5 @@
 import Home from '../../_Home'
-import { loadMagpieConfig } from '@/lib/config'
+import { loadChatframeConfig } from '@/lib/config'
 import { resolveLocale } from '@/lib/i18n/server'
 import { resolveLocalizableString, resolveLocalizableStringArray } from '@/lib/i18n'
 
@@ -10,7 +10,7 @@ import { resolveLocalizableString, resolveLocalizableStringArray } from '@/lib/i
 // sidebar state survive between conv switches.
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { config, flags, localeCodes, defaultLocale } = loadMagpieConfig()
+  const { config, flags, localeCodes, defaultLocale } = loadChatframeConfig()
   const activeLocale = await resolveLocale(localeCodes, defaultLocale)
   return (
     <Home

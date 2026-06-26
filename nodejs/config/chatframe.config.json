@@ -1,17 +1,17 @@
 {
-  "$comment": "Magpie branding + theme config. Edit this file in-place on a running instance — the next page load picks up the changes (no rebuild, no restart). For PWA shortcuts already installed on a device, the OS-cached launcher icon won't update until you reinstall the PWA.",
+  "$comment": "Chatframe branding + theme config. Edit this file in-place on a running instance — the next page load picks up the changes (no rebuild, no restart). For PWA shortcuts already installed on a device, the OS-cached launcher icon won't update until you reinstall the PWA.",
 
-  "name": "Magpie",
-  "shortName": "Magpie",
+  "name": "Chatframe",
+  "shortName": "Chatframe",
   "tagline": "Embeddable AI chatbot framework",
   "defaultSystemPrompt": "You are a helpful AI assistant.",
 
   "$welcomeMessageNote": "Rendered as the first assistant bubble whenever the chat is empty. Plain string OR per-locale object: { en: '...', es: '...', de: '...' }. Markdown supported. Leave empty to show the default 'Start a conversation.' placeholder.",
   "welcomeMessage": {
-    "en": "Hi — I'm a Cordfuse demo of Magpie. I can pull live Microsoft docs via MCP, search the web, and help with anything else you'd ask a smart assistant. Try one of the prompts below, or ask me anything.",
-    "es": "Hola — soy una demo de Cordfuse de Magpie. Puedo consultar documentación de Microsoft en vivo vía MCP, buscar en la web y ayudarte con cualquier cosa que le preguntarías a un asistente inteligente. Prueba uno de los prompts de abajo o pregúntame lo que quieras.",
-    "fr": "Bonjour — je suis une démo Cordfuse de Magpie. Je peux récupérer la documentation Microsoft en direct via MCP, faire des recherches web et vous aider sur tout ce que vous demanderiez à un assistant intelligent. Essayez l'une des invites ci-dessous ou posez-moi votre question.",
-    "de": "Hallo — ich bin eine Cordfuse-Demo von Magpie. Ich kann Microsoft-Dokumentation live über MCP abrufen, das Web durchsuchen und bei allem helfen, was du einen smarten Assistenten fragen würdest. Probiere einen der Prompts unten oder frag mich einfach."
+    "en": "Hi — I'm a Cordfuse demo of Chatframe. I can pull live Microsoft docs via MCP, search the web, and help with anything else you'd ask a smart assistant. Try one of the prompts below, or ask me anything.",
+    "es": "Hola — soy una demo de Cordfuse de Chatframe. Puedo consultar documentación de Microsoft en vivo vía MCP, buscar en la web y ayudarte con cualquier cosa que le preguntarías a un asistente inteligente. Prueba uno de los prompts de abajo o pregúntame lo que quieras.",
+    "fr": "Bonjour — je suis une démo Cordfuse de Chatframe. Je peux récupérer la documentation Microsoft en direct via MCP, faire des recherches web et vous aider sur tout ce que vous demanderiez à un assistant intelligent. Essayez l'une des invites ci-dessous ou posez-moi votre question.",
+    "de": "Hallo — ich bin eine Cordfuse-Demo von Chatframe. Ich kann Microsoft-Dokumentation live über MCP abrufen, das Web durchsuchen und bei allem helfen, was du einen smarten Assistenten fragen würdest. Probiere einen der Prompts unten oder frag mich einfach."
   },
 
   "$starterPromptsNote": "Clickable pill chips below the welcome bubble. Each prompt is sent verbatim as the user's first message on click. Empty array hides the chip row. Plain array OR per-locale object: { en: [...], es: [...] }.",
@@ -41,7 +41,7 @@
       "Hilf mir, eine freundliche Abwesenheitsmail zu schreiben"
     ]
   },
-  "checkForUpdatesUrl": "https://github.com/cordfuse/magpie/releases",
+  "checkForUpdatesUrl": "https://github.com/cordfuse/chatframe/releases",
 
   "$iconNote": "Paths served by the /branding/* route, which streams files from config/icons/. Drop your PNGs into config/icons/ and reference them here as /branding/<filename>. icon192 drives the browser favicon AND the PWA 192 icon; icon512 is PWA only. PWA installs already on a device may keep the OS-cached launcher icon until reinstalled.",
   "icon192": "/branding/icon-192.png",

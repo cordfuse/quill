@@ -1,7 +1,7 @@
-# Magpie provider + model registry.
+# Chatframe provider + model registry.
 #
 # This file is the operator-visible source of truth for which providers
-# and models magpie exposes in the UI / accepts via /api/chat. Edit here
+# and models chatframe exposes in the UI / accepts via /api/chat. Edit here
 # instead of touching `lib/server/ai-tools.ts` when:
 #   - a provider ships a new model and you want it in the picker
 #   - a model has been deprecated and you want it removed
